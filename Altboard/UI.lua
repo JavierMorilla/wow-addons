@@ -413,7 +413,8 @@ local function UpdateRow(row, data)
 	local leveling = rec.level and rec.maxLevel and rec.level < rec.maxLevel
 	row.name:SetText(rec.name or "?")
 	row.name:SetTextColor(r, g, b)
-	row.sub:SetText(table.concat({ rec.specName or rec.className or "", leveling and L.Level:format(rec.level) or rec.realm or "" }, " · "))
+	local spec = rec.specName ~= "" and rec.specName or rec.className or ""
+	row.sub:SetText(table.concat({ spec, leveling and L.Level:format(rec.level) or rec.realm or "" }, " · "))
 
 	row.ilvl:SetText(rec.ilvl and rec.ilvl > 0 and format("|c%s%d|r", ItemLevelColor(rec.ilvl), math.floor(rec.ilvl)) or "–")
 	row.gold:SetText(Money(rec.money))
@@ -460,7 +461,7 @@ local function UpdateRow(row, data)
 	end
 
 	local keys = rec.currencies and rec.currencies[ns.COFFER_KEYS]
-	row.keys:SetText(keys and format("|T%d:13:13|t %d", keys.icon or 134400, keys.quantity) or "–")
+	row.keys:SetText(leveling and "|cff606670–|r" or keys and format("|T%d:13:13|t %d", keys.icon or 134400, keys.quantity) or "–")
 
 	local rested = ns.ProjectedRested(rec)
 	if rested then

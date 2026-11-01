@@ -49,7 +49,8 @@ local function CollectBasics(rec)
 		if (not icon or icon == 0) and GetSpecializationInfoByID then
 			icon = select(4, GetSpecializationInfoByID(specID))
 		end
-		rec.specID, rec.specName, rec.role = specID, specName, role
+		rec.specID, rec.role = specID, role
+		if specName and specName ~= "" then rec.specName = specName end
 		if icon and icon ~= 0 then rec.specIcon = icon end
 	end
 end
