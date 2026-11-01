@@ -1,0 +1,5 @@
+<Bindings>
+	<Binding name="CRONICA_TOGGLE" header="CRONICA" category="ADDONS">
+		Cronica_Toggle()
+	</Binding>
+</Bindings>

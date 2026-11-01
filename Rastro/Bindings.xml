@@ -1,0 +1,5 @@
+<Bindings>
+	<Binding name="RASTRO_TOGGLE" header="RASTRO" category="ADDONS">
+		Rastro_Toggle()
+	</Binding>
+</Bindings>
