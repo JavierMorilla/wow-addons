@@ -45,6 +45,11 @@ local L = {
 	Resting = "resting",
 	ValorstonesName = "Valorstones",
 	ColNameHint = "Click a column to sort",
+	MinimapClick = "Click: open or close the board",
+	MinimapDrag = "Drag: move this button",
+	MinimapRight = "Right-click: hide this button",
+	MinimapHidden = "Minimap button hidden. Type |cffffd100/alts button|r to bring it back.",
+	PendingRewards = "Great Vault rewards waiting: %d",
 }
 
 local locale = GetLocale()
@@ -91,6 +96,11 @@ if locale == "esES" or locale == "esMX" then
 	L.Resting = "descansando"
 	L.ValorstonesName = "Piedras de valor"
 	L.ColNameHint = "Clic en una columna para ordenar"
+	L.MinimapClick = "Clic: abrir o cerrar el panel"
+	L.MinimapDrag = "Arrastrar: mover este botón"
+	L.MinimapRight = "Clic derecho: ocultar este botón"
+	L.MinimapHidden = "Botón del minimapa oculto. Escribe |cffffd100/alts boton|r para recuperarlo."
+	L.PendingRewards = "Recompensas esperando en la Gran Cámara: %d"
 end
 
 ns.L = L

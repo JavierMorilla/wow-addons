@@ -8,6 +8,8 @@ local DEFAULTS = {
 	sortDesc = true,
 	showHidden = false,
 	scale = 1,
+	minimapAngle = 200,
+	minimapHide = false,
 }
 
 local function ApplyDefaults(db)
@@ -63,6 +65,7 @@ f:SetScript("OnEvent", function(_, event, arg1, arg2)
 		if arg1 ~= addonName then return end
 		AltboardDB = ApplyDefaults(AltboardDB or {})
 		ns.db = AltboardDB
+		ns.CreateMinimapButton()
 	elseif event == "PLAYER_ENTERING_WORLD" then
 		if arg1 or arg2 then -- login or /reload
 			RequestRaidInfo()
@@ -90,6 +93,8 @@ SlashCmdList.ALTBOARD = function(msg)
 	if msg == "debug" then
 		ns.debug = not ns.debug
 		print("|cff66ccffAltboard|r debug", ns.debug and "on" or "off")
+	elseif msg == "boton" or msg == "botón" or msg == "button" or msg == "minimap" then
+		ns.SetMinimapHidden(not ns.db.minimapHide)
 	elseif msg == "scan" then
 		ns.Collect()
 		if ns.Refresh then ns.Refresh() end

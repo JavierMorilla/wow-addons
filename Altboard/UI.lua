@@ -721,3 +721,106 @@ function ns.Toggle()
 	frame = frame or CreateWindow()
 	frame:SetShown(not frame:IsShown())
 end
+
+-- Minimap button ----------------------------------------------------------------
+
+local minimapButton
+
+-- Round minimaps put the button on the rim; square ones (Leatrix Plus and
+-- others define GetMinimapShape) slide it along the edge into the corners.
+local function PlaceMinimapButton(angle)
+	local rad = math.rad(angle)
+	local x, y = math.cos(rad), math.sin(rad)
+	local w, h = Minimap:GetWidth() / 2 + 5, Minimap:GetHeight() / 2 + 5
+	local shape = GetMinimapShape and GetMinimapShape() or "ROUND"
+	if shape == "SQUARE" then
+		local dw, dh = math.sqrt(2 * w * w) - 10, math.sqrt(2 * h * h) - 10
+		x = math.max(-w, math.min(x * dw, w))
+		y = math.max(-h, math.min(y * dh, h))
+	else
+		x, y = x * w, y * h
+	end
+	minimapButton:ClearAllPoints()
+	minimapButton:SetPoint("CENTER", Minimap, "CENTER", x, y)
+end
+
+local function MinimapTooltip(self)
+	GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+	GameTooltip:AddLine(L.Title, unpack(C.accent))
+	local total, rewards = ns.db.warbandMoney or 0, 0
+	for _, rec in pairs(ns.db.chars) do
+		total = total + (rec.money or 0)
+		if ns.HasPendingReward(rec) then rewards = rewards + 1 end
+	end
+	GameTooltip:AddDoubleLine(L.TotalGold, Money(total), 0.85, 0.85, 0.85, 1, 1, 1)
+	if ns.db.weekResetAt then
+		GameTooltip:AddDoubleLine(L.WeeklyReset, Duration(ns.db.weekResetAt - time()), 0.85, 0.85, 0.85, 1, 1, 1)
+	end
+	if rewards > 0 then
+		GameTooltip:AddLine(L.PendingRewards:format(rewards), unpack(C.gold))
+	end
+	GameTooltip:AddLine(" ")
+	GameTooltip:AddLine(L.MinimapClick, unpack(C.dim))
+	GameTooltip:AddLine(L.MinimapDrag, unpack(C.dim))
+	GameTooltip:AddLine(L.MinimapRight, unpack(C.dim))
+	GameTooltip:Show()
+end
+
+function ns.SetMinimapHidden(hidden)
+	ns.db.minimapHide = hidden
+	if minimapButton then minimapButton:SetShown(not hidden) end
+	if hidden then print("|cff66ccffAltboard|r " .. L.MinimapHidden) end
+end
+
+function ns.CreateMinimapButton()
+	if minimapButton then return end
+	local b = CreateFrame("Button", "AltboardMinimapButton", Minimap)
+	b:SetSize(31, 31)
+	b:SetFrameStrata("MEDIUM")
+	b:SetFrameLevel(8)
+	b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+	b:RegisterForDrag("LeftButton")
+	b:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
+
+	local bg = b:CreateTexture(nil, "BACKGROUND")
+	bg:SetSize(24, 24)
+	bg:SetPoint("CENTER")
+	bg:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
+	local icon = b:CreateTexture(nil, "ARTWORK")
+	icon:SetSize(18, 18)
+	icon:SetPoint("CENTER")
+	icon:SetTexture("Interface\\Icons\\INV_Misc_Book_09")
+	icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+	local border = b:CreateTexture(nil, "OVERLAY")
+	border:SetSize(50, 50)
+	border:SetPoint("TOPLEFT")
+	border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
+
+	b:SetScript("OnClick", function(_, button)
+		if button == "RightButton" then
+			GameTooltip:Hide()
+			ns.SetMinimapHidden(true)
+		else
+			ns.Toggle()
+		end
+	end)
+	b:SetScript("OnDragStart", function(self)
+		GameTooltip:Hide()
+		self:SetScript("OnUpdate", function()
+			local mx, my = Minimap:GetCenter()
+			local scale = Minimap:GetEffectiveScale()
+			local cx, cy = GetCursorPosition()
+			ns.db.minimapAngle = math.deg(math.atan2(cy / scale - my, cx / scale - mx)) % 360
+			PlaceMinimapButton(ns.db.minimapAngle)
+		end)
+	end)
+	b:SetScript("OnDragStop", function(self)
+		self:SetScript("OnUpdate", nil)
+	end)
+	b:SetScript("OnEnter", MinimapTooltip)
+	b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+	minimapButton = b
+	PlaceMinimapButton(ns.db.minimapAngle)
+	b:SetShown(not ns.db.minimapHide)
+end

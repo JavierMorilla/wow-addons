@@ -4,7 +4,7 @@ Personal World of Warcraft addons for retail The War Within 11.2.5 (interface 11
 
 ## Altboard
 
-Every alt at a glance, in one window: `/alts` (or `/altboard`, the minimap addon menu, or a key binding under Key Bindings > AddOns).
+Every alt at a glance, in one window: `/alts` (or `/altboard`, the minimap button, the minimap addon menu, or a key binding under Key Bindings > AddOns). The minimap button can be dragged around the rim; right-click hides it and `/alts button` brings it back.
 
 - Item level, gold (plus warband bank and an account total), spec and level
 - Great Vault: three pips each for raid, dungeons and world; a "Reward!" flag once a slot from last week is waiting
