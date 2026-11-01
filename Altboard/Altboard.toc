@@ -1,0 +1,14 @@
+## Interface: 110205, 110207
+## Title: |cff66ccffAltboard|r
+## Notes: Every alt at a glance: item level, gold, Great Vault, keystone, crests, coffer keys, lockouts and rested XP.
+## Notes-esES: Todos tus alts de un vistazo: nivel de objeto, oro, Gran Cámara, piedra angular, blasones, llaves, bloqueos y descanso.
+## Author: Morigoll
+## Version: 0.1.0
+## SavedVariables: AltboardDB
+## IconTexture: Interface\Icons\INV_Misc_Book_09
+## AddonCompartmentFunc: Altboard_OnAddonCompartmentClick
+
+Locale.lua
+Collect.lua
+UI.lua
+Core.lua
