@@ -77,7 +77,7 @@ f:SetScript("OnEvent", function(_, event, arg1, arg2)
 			end
 		end
 	elseif event == "PLAYER_LOGOUT" then
-		ns.Collect({ xp = true, currency = true })
+		ns.MarkLogout()
 	elseif EVENT_PARTS[event] then
 		Queue(EVENT_PARTS[event])
 	end

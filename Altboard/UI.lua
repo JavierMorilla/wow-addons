@@ -400,13 +400,22 @@ local function UpdateRow(row, data)
 	local r, g, b = ClassColor(rec)
 	row.bar:SetColorTexture(r, g, b, 0.9)
 	row.iconBorder:SetColorTexture(r, g, b, 0.85)
-	row.icon:SetTexture(rec.specIcon or 134400)
+	local classAtlas = rec.class and "classicon-" .. rec.class:lower()
+	if rec.specIcon then
+		row.icon:SetTexture(rec.specIcon)
+		row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+	elseif classAtlas and C_Texture.GetAtlasInfo(classAtlas) then
+		row.icon:SetAtlas(classAtlas)
+	else
+		row.icon:SetTexture(134400)
+		row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+	end
+	local leveling = rec.level and rec.maxLevel and rec.level < rec.maxLevel
 	row.name:SetText(rec.name or "?")
 	row.name:SetTextColor(r, g, b)
-	local level = rec.level and rec.maxLevel and rec.level < rec.maxLevel and L.Level:format(rec.level) or nil
-	row.sub:SetText(table.concat({ rec.specName or rec.className or "", level or rec.realm or "" }, " · "))
+	row.sub:SetText(table.concat({ rec.specName or rec.className or "", leveling and L.Level:format(rec.level) or rec.realm or "" }, " · "))
 
-	row.ilvl:SetText(rec.ilvl and format("|c%s%d|r", ItemLevelColor(rec.ilvl), math.floor(rec.ilvl)) or "–")
+	row.ilvl:SetText(rec.ilvl and rec.ilvl > 0 and format("|c%s%d|r", ItemLevelColor(rec.ilvl), math.floor(rec.ilvl)) or "–")
 	row.gold:SetText(Money(rec.money))
 
 	-- Vault
@@ -418,6 +427,7 @@ local function UpdateRow(row, data)
 		for s = 1, 3 do
 			local pip = row.pips[(g - 1) * 3 + s]
 			pip:SetShown(not pending)
+			pip:SetAlpha(leveling and 0.35 or 1)
 			local slot = slots and slots[s]
 			if slot and not stale and slot.progress >= slot.threshold then
 				pip:SetColorTexture(unpack(VAULT_COLORS[vt.key]))
@@ -433,17 +443,21 @@ local function UpdateRow(row, data)
 		row.key:SetText(format("|cffffffff+%d|r %s", rec.key.level or 0, name))
 		row.key:SetAlpha(stale and 0.45 or 1)
 	else
-		row.key:SetText("|cff606670" .. L.NoKey .. "|r")
+		row.key:SetText("|cff606670" .. (leveling and "–" or L.NoKey) .. "|r")
 		row.key:SetAlpha(1)
 	end
-	row.score:SetText(ScoreText(rec.score))
+	row.score:SetText((rec.score or 0) > 0 and ScoreText(rec.score) or "")
 
 	-- Crests: Weathered, Carved, Runed, Gilded
-	local crests = {}
-	for i, id in ipairs(ns.CRESTS) do
-		crests[i] = format("|c%s%d|r", ns.CREST_COLORS[i], Qty(rec, id))
+	if leveling then
+		row.crests:SetText("|cff606670–|r")
+	else
+		local crests = {}
+		for i, id in ipairs(ns.CRESTS) do
+			crests[i] = format("|c%s%d|r", ns.CREST_COLORS[i], Qty(rec, id))
+		end
+		row.crests:SetText(table.concat(crests, "  "))
 	end
-	row.crests:SetText(table.concat(crests, "  "))
 
 	local keys = rec.currencies and rec.currencies[ns.COFFER_KEYS]
 	row.keys:SetText(keys and format("|T%d:13:13|t %d", keys.icon or 134400, keys.quantity) or "–")
@@ -457,7 +471,7 @@ local function UpdateRow(row, data)
 		row.restFill:SetWidth(math.max(1, 60 * math.min(rested / 1.5, 1)))
 	else
 		row.rested:SetPoint("LEFT", row, "LEFT", COL.rested.x, 0)
-		row.rested:SetText("|cff606670" .. L.MaxLevel .. "|r")
+		row.rested:SetText("|cff606670" .. (leveling and "–" or L.MaxLevel) .. "|r")
 		row.restBg:Hide()
 		row.restFill:Hide()
 	end

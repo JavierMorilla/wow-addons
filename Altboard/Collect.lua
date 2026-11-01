@@ -39,10 +39,18 @@ local function CollectBasics(rec)
 	rec.ilvl = equipped
 	rec.ilvlOverall = overall
 
+	-- The server sometimes reports spec 0 or no icon; keep what we had then.
 	local spec = GetSpecialization()
+	local specID, specName, icon, role, _
 	if spec then
-		local specID, specName, _, icon, role = GetSpecializationInfo(spec)
-		rec.specID, rec.specName, rec.specIcon, rec.role = specID, specName, icon, role
+		specID, specName, _, icon, role = GetSpecializationInfo(spec)
+	end
+	if specID and specID > 0 then
+		if (not icon or icon == 0) and GetSpecializationInfoByID then
+			icon = select(4, GetSpecializationInfoByID(specID))
+		end
+		rec.specID, rec.specName, rec.role = specID, specName, role
+		if icon and icon ~= 0 then rec.specIcon = icon end
 	end
 end
 
@@ -173,6 +181,15 @@ function ns.Collect(parts)
 	rec.weekResetAt = time() + C_DateAndTime.GetSecondsUntilWeeklyReset()
 	ns.db.weekResetAt = rec.weekResetAt
 	ns.currentGUID = guid
+end
+
+-- By PLAYER_LOGOUT money, item level, XP and spec already read as zero, so a
+-- full snapshot would wipe the character; only note when and where it was left.
+function ns.MarkLogout()
+	local rec = ns.db and ns.currentGUID and ns.db.chars[ns.currentGUID]
+	if not rec then return end
+	rec.lastSeen = time()
+	rec.resting = IsResting()
 end
 
 -- Views that account for time passing while a character is logged out.
