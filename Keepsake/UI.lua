@@ -39,10 +39,10 @@ local function Font(name, size, color)
 	return f
 end
 local F = {
-	title = Font("MementoFontTitle", 17, C.text),
-	text = Font("MementoFontText", 12, C.text),
-	small = Font("MementoFontSmall", 10, C.dim),
-	day = Font("MementoFontDay", 12, C.accent),
+	title = Font("KeepsakeFontTitle", 17, C.text),
+	text = Font("KeepsakeFontText", 12, C.text),
+	small = Font("KeepsakeFontSmall", 10, C.dim),
+	day = Font("KeepsakeFontDay", 12, C.accent),
 }
 
 local function Text(parent, font)
@@ -364,7 +364,7 @@ function ns.Refresh()
 end
 
 local function CreateWindow()
-	local f = CreateFrame("Frame", "MementoFrame", UIParent, "BackdropTemplate")
+	local f = CreateFrame("Frame", "KeepsakeFrame", UIParent, "BackdropTemplate")
 	f:SetSize(W, H)
 	f:SetFrameStrata("HIGH")
 	f:SetToplevel(true)
@@ -387,7 +387,7 @@ local function CreateWindow()
 	else
 		f:SetPoint("CENTER")
 	end
-	tinsert(UISpecialFrames, "MementoFrame")
+	tinsert(UISpecialFrames, "KeepsakeFrame")
 
 	local glow = f:CreateTexture(nil, "BORDER")
 	glow:SetPoint("TOPLEFT", 1, -1)

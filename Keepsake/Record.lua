@@ -254,36 +254,36 @@ end
 f:SetScript("OnEvent", function(_, event, ...)
 	if event == "ADDON_LOADED" then
 		if ... ~= addonName then return end
-		MementoDB = MementoDB or {}
+		KeepsakeDB = KeepsakeDB or {}
 		for k, v in pairs(DEFAULTS) do
-			if MementoDB[k] == nil then MementoDB[k] = type(v) == "table" and {} or v end
+			if KeepsakeDB[k] == nil then KeepsakeDB[k] = type(v) == "table" and {} or v end
 		end
-		ns.db = MementoDB
+		ns.db = KeepsakeDB
 		return
 	end
 	if not ns.db then return end
 	local ok, err = pcall(handlers[event], ...)
-	if not ok and ns.debug then print("|cffffc259Memento|r", event, err) end
+	if not ok and ns.debug then print("|cffffc259Keepsake|r", event, err) end
 end)
 
-SLASH_MEMENTO1 = "/memento"
-SLASH_MEMENTO2 = "/cronica"
-SLASH_MEMENTO3 = "/diario"
-SlashCmdList.MEMENTO = function(msg)
+SLASH_KEEPSAKE1 = "/keepsake"
+SLASH_KEEPSAKE2 = "/cronica"
+SLASH_KEEPSAKE3 = "/diario"
+SlashCmdList.KEEPSAKE = function(msg)
 	if strtrim(msg or ""):lower() == "debug" then
 		ns.debug = not ns.debug
-		print("|cffffc259Memento|r debug", ns.debug and "on" or "off")
+		print("|cffffc259Keepsake|r debug", ns.debug and "on" or "off")
 		return
 	end
 	ns.Toggle()
 end
 
-function Memento_OnAddonCompartmentClick()
+function Keepsake_OnAddonCompartmentClick()
 	ns.Toggle()
 end
 
-BINDING_HEADER_MEMENTO = L.Title
-BINDING_NAME_MEMENTO_TOGGLE = L.Title
-function Memento_Toggle()
+BINDING_HEADER_KEEPSAKE = L.Title
+BINDING_NAME_KEEPSAKE_TOGGLE = L.Title
+function Keepsake_Toggle()
 	ns.Toggle()
 end

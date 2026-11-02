@@ -1,12 +1,12 @@
 ## Interface: 110205, 110207
-## Title: |cffffc259Memento|r
+## Title: |cffffc259Keepsake|r
 ## Notes: A journal of every character's story: levels, first boss kills, Mythic+ runs, epic loot, mounts, pets, toys, renown and first visits, with automatic screenshots.
 ## Notes-esES: El diario de la historia de cada personaje: niveles, primeras victorias, M+, botín épico, monturas, mascotas, juguetes, renombre y primeras visitas, con capturas automáticas.
 ## Author: Morigoll
 ## Version: 0.1.0
-## SavedVariables: MementoDB
+## SavedVariables: KeepsakeDB
 ## IconTexture: Interface\Icons\INV_Misc_Book_11
-## AddonCompartmentFunc: Memento_OnAddonCompartmentClick
+## AddonCompartmentFunc: Keepsake_OnAddonCompartmentClick
 
 Locale.lua
 Record.lua

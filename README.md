@@ -5,7 +5,7 @@ World of Warcraft addons by **Morigoll**, for retail The War Within 11.2.5 (inte
 | | Addon | What it does |
 |---|---|---|
 | <img src="docs/media/Barracks-logo.png" width="64"> | **Barracks** | Every alt at a glance: item level, gold, Great Vault, keystone, crests, lockouts, rested XP |
-| <img src="docs/media/Memento-logo.png" width="64"> | **Memento** | A journal of each character's story, with automatic screenshots |
+| <img src="docs/media/Keepsake-logo.png" width="64"> | **Keepsake** | A journal of each character's story, with automatic screenshots |
 | <img src="docs/media/TreasureTrail-logo.png" width="64"> | **Treasure Trail** | What you can still collect in this zone, dungeon or raid |
 
 **Install:** download the zip of the addon you want from [Releases](../../releases), and extract it into `World of Warcraft\_retail_\Interface\AddOns`.
@@ -26,11 +26,11 @@ Every alt at a glance, in one window: `/alts` (or `/barracks`, the minimap butto
 
 Each character is recorded when you log in on it. Hover a row for details, click a column header to sort, right-click a row to hide or forget a character. `/alts scan` forces a refresh; `/alts debug` prints any API that fails.
 
-## Memento
+## Keepsake
 
-![Memento](docs/media/Memento-timeline.png)
+![Keepsake](docs/media/Keepsake-timeline.png)
 
-A journal of each character's story, as a timeline grouped by day: `/memento` (or `/diario`, the minimap addon menu, or a key binding).
+A journal of each character's story, as a timeline grouped by day: `/keepsake` (or `/diario`, the minimap addon menu, or a key binding).
 
 - Records level-ups, achievements, first victory over each boss and difficulty, Mythic+ runs (in time or not), epic and legendary gear, new mounts, pets and toys, renown levels, and the first visit to every zone, dungeon, raid and delve
 - Takes a screenshot of the big moments (levels, achievements, first kills, Mythic+, mounts); turn it off in the footer

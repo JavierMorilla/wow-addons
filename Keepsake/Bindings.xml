@@ -1,0 +1,5 @@
+<Bindings>
+	<Binding name="KEEPSAKE_TOGGLE" header="KEEPSAKE" category="ADDONS">
+		Keepsake_Toggle()
+	</Binding>
+</Bindings>

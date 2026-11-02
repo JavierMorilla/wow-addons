@@ -1,15 +1,15 @@
-# Memento — CurseForge page
+# Keepsake — CurseForge page
 
-**Name:** Memento
+**Name:** Keepsake
 **Summary:** A beautiful journal of each character's story: levels, first boss kills, Mythic+ runs, epic loot, mounts and first visits, with automatic screenshots.
-**Logo:** `docs/media/Memento-logo.png`
+**Logo:** `docs/media/Keepsake-logo.png`
 **License:** MIT
 
 ---
 
 ## Description
 
-**Memento** writes the story of every character as you play, and shows it as a timeline grouped by day.
+**Keepsake** writes the story of every character as you play, and shows it as a timeline grouped by day.
 
 ### What it records
 - **Level-ups**
@@ -26,7 +26,7 @@
 - **Import past achievements**: one click fills the journal with every achievement the character already earned, with its date, so it never starts empty
 - Filter by kind, search, and switch characters (or see them all together) in the sidebar
 - Click an achievement to open it, shift-click any entry to link it in chat, ctrl-click gear to preview it
-- Open it with `/memento`, the addon compartment, or a key binding
+- Open it with `/keepsake`, the addon compartment, or a key binding
 - No libraries; English and Spanish
 
 Made for retail **The War Within (11.2.5)**.
@@ -35,9 +35,9 @@ Made for retail **The War Within (11.2.5)**.
 
 ## Descripción (español)
 
-**Memento** escribe la historia de cada personaje mientras juegas y la muestra como una línea temporal agrupada por días: niveles, logros, primeras victorias contra cada jefe, M+ (a tiempo o no), botín épico y legendario, monturas, mascotas y juguetes nuevos, renombre y primeras visitas a zonas, mazmorras, bandas y Delves.
+**Keepsake** escribe la historia de cada personaje mientras juegas y la muestra como una línea temporal agrupada por días: niveles, logros, primeras victorias contra cada jefe, M+ (a tiempo o no), botín épico y legendario, monturas, mascotas y juguetes nuevos, renombre y primeras visitas a zonas, mazmorras, bandas y Delves.
 
 - **Capturas automáticas** de los grandes momentos
 - **Importa tus logros anteriores** con su fecha
 - Filtros, buscador y barra lateral de personajes
-- `/memento`, `/diario`, menú de addons o atajo de teclado
+- `/keepsake`, `/diario`, menú de addons o atajo de teclado
