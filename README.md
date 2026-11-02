@@ -1,8 +1,18 @@
 # wow-addons
 
-Personal World of Warcraft addons for retail The War Within 11.2.5 (interface 110205).
+World of Warcraft addons by **Morigoll**, for retail The War Within 11.2.5 (interface 110205). No libraries, English and Spanish, one dark visual style.
+
+| | Addon | What it does |
+|---|---|---|
+| <img src="docs/media/Altboard-logo.png" width="64"> | **Altboard** | Every alt at a glance: item level, gold, Great Vault, keystone, crests, lockouts, rested XP |
+| <img src="docs/media/Cronica-logo.png" width="64"> | **Crónica** | A journal of each character's story, with automatic screenshots |
+| <img src="docs/media/Rastro-logo.png" width="64"> | **Rastro** | What you can still collect in this zone, dungeon or raid |
+
+**Install:** download the zip of the addon you want from [Releases](../../releases), and extract it into `World of Warcraft\_retail_\Interface\AddOns`.
 
 ## Altboard
+
+![Altboard](docs/media/Altboard-board.png)
 
 Every alt at a glance, in one window: `/alts` (or `/altboard`, the minimap button, the minimap addon menu, or a key binding under Key Bindings > AddOns). The minimap button can be dragged around the rim; right-click hides it and `/alts button` brings it back.
 
@@ -18,6 +28,8 @@ Each character is recorded when you log in on it. Hover a row for details, click
 
 ## Crónica
 
+![Crónica](docs/media/Cronica-timeline.png)
+
 A journal of each character's story, as a timeline grouped by day: `/cronica` (or `/diario`, `/chronicle`, the minimap addon menu, or a key binding).
 
 - Records level-ups, achievements, first victory over each boss and difficulty, Mythic+ runs (in time or not), epic and legendary gear, new mounts, pets and toys, renown levels, and the first visit to every zone, dungeon, raid and delve
@@ -26,6 +38,8 @@ A journal of each character's story, as a timeline grouped by day: `/cronica` (o
 - Filter by kind, search, or switch between characters in the sidebar; click an achievement to open it, shift-click to link, ctrl-click loot to preview it
 
 ## Rastro
+
+![Rastro in a zone](docs/media/Rastro-zone.png) ![Rastro in a dungeon](docs/media/Rastro-instance.png)
 
 What you can still collect where you stand: `/rastro` (or the pill under the minimap, the addon menu, or a key binding).
 
@@ -41,3 +55,17 @@ Each addon folder is linked into the game with a junction, so edits only need `/
 ```powershell
 New-Item -ItemType Junction -Path "<World of Warcraft>\_retail_\Interface\AddOns\Altboard" -Target "<this repo>\Altboard"
 ```
+
+## Releasing
+
+Bump `## Version` in the addon's `.toc`, add a matching `## <version>` section to its `CHANGELOG.md`, commit, then:
+
+```powershell
+node tools/release.mjs Altboard
+```
+
+It zips the addon, pushes, and creates the GitHub release `altboard-v<version>` with the zip. When `CF_API_TOKEN` is set and `tools/curseforge.json` has the addon's project id, it uploads the same zip to CurseForge for the game versions in the `.toc`. `--dry-run` only builds `dist/<Addon>-<version>.zip`. The CurseForge page texts live in `docs/curseforge/`.
+
+## License
+
+[MIT](LICENSE) © Morigoll
