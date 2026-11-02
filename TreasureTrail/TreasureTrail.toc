@@ -1,12 +1,12 @@
 ## Interface: 110205, 110207
-## Title: |cff73e699Rastro|r
+## Title: |cff73e699Treasure Trail|r
 ## Notes: What you can still collect where you stand: mounts and pets from this zone, and the mounts, pets, toys and appearances that drop in this dungeon or raid.
 ## Notes-esES: Lo que aún puedes conseguir donde estás: monturas y mascotas de la zona, y las monturas, mascotas, juguetes y apariencias que caen en esta mazmorra o banda.
 ## Author: Morigoll
 ## Version: 0.1.0
-## SavedVariables: RastroDB
+## SavedVariables: TreasureTrailDB
 ## IconTexture: Interface\Icons\INV_Misc_Spyglass_02
-## AddonCompartmentFunc: Rastro_OnAddonCompartmentClick
+## AddonCompartmentFunc: TreasureTrail_OnAddonCompartmentClick
 
 Locale.lua
 Scan.lua

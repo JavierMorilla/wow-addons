@@ -1,4 +1,4 @@
-# Crónica
+# Memento
 
 ## 0.1.0
 

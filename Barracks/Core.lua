@@ -63,8 +63,8 @@ end
 f:SetScript("OnEvent", function(_, event, arg1, arg2)
 	if event == "ADDON_LOADED" then
 		if arg1 ~= addonName then return end
-		AltboardDB = ApplyDefaults(AltboardDB or {})
-		ns.db = AltboardDB
+		BarracksDB = ApplyDefaults(BarracksDB or {})
+		ns.db = BarracksDB
 		ns.CreateMinimapButton()
 	elseif event == "PLAYER_ENTERING_WORLD" then
 		if arg1 or arg2 then -- login or /reload
@@ -86,13 +86,13 @@ f:SetScript("OnEvent", function(_, event, arg1, arg2)
 	end
 end)
 
-SLASH_ALTBOARD1 = "/alts"
-SLASH_ALTBOARD2 = "/altboard"
-SlashCmdList.ALTBOARD = function(msg)
+SLASH_BARRACKS1 = "/alts"
+SLASH_BARRACKS2 = "/barracks"
+SlashCmdList.BARRACKS = function(msg)
 	msg = strtrim(msg or ""):lower()
 	if msg == "debug" then
 		ns.debug = not ns.debug
-		print("|cff66ccffAltboard|r debug", ns.debug and "on" or "off")
+		print("|cff66ccffBarracks|r debug", ns.debug and "on" or "off")
 	elseif msg == "boton" or msg == "botón" or msg == "button" or msg == "minimap" then
 		ns.SetMinimapHidden(not ns.db.minimapHide)
 	elseif msg == "scan" then
@@ -104,12 +104,12 @@ SlashCmdList.ALTBOARD = function(msg)
 end
 
 -- Minimap addon compartment (see the .toc)
-function Altboard_OnAddonCompartmentClick()
+function Barracks_OnAddonCompartmentClick()
 	ns.Toggle()
 end
 
-BINDING_HEADER_ALTBOARD = L.Title
-BINDING_NAME_ALTBOARD_TOGGLE = L.Title
-function Altboard_Toggle()
+BINDING_HEADER_BARRACKS = L.Title
+BINDING_NAME_BARRACKS_TOGGLE = L.Title
+function Barracks_Toggle()
 	ns.Toggle()
 end

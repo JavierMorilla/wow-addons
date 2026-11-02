@@ -1,0 +1,5 @@
+<Bindings>
+	<Binding name="MEMENTO_TOGGLE" header="MEMENTO" category="ADDONS">
+		Memento_Toggle()
+	</Binding>
+</Bindings>

@@ -1,5 +1,0 @@
-<Bindings>
-	<Binding name="ALTBOARD_TOGGLE" header="ALTBOARD" category="ADDONS">
-		Altboard_Toggle()
-	</Binding>
-</Bindings>

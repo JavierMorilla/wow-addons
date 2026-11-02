@@ -1,15 +1,15 @@
-# Altboard — CurseForge page
+# Barracks — CurseForge page
 
-**Name:** Altboard
+**Name:** Barracks
 **Summary:** Every alt at a glance: item level, gold, Great Vault, keystone, crests, coffer keys, lockouts and rested XP in one clean window.
-**Logo:** `docs/media/Altboard-logo.png`
+**Logo:** `docs/media/Barracks-logo.png`
 **License:** MIT
 
 ---
 
 ## Description
 
-**Altboard** shows all your characters in one modern, dark window, so you know at a glance which alt still has things to do this week.
+**Barracks** shows all your characters in one modern, dark window, so you know at a glance which alt still has things to do this week.
 
 ### What you see for each character
 - **Item level**, coloured by upgrade track
@@ -35,7 +35,7 @@ Made for retail **The War Within (11.2.5)**.
 
 ## Descripción (español)
 
-**Altboard** muestra todos tus personajes en una ventana moderna y oscura, para saber de un vistazo qué alt tiene cosas pendientes esta semana.
+**Barracks** muestra todos tus personajes en una ventana moderna y oscura, para saber de un vistazo qué alt tiene cosas pendientes esta semana.
 
 - **Nivel de objeto**, **oro** (con el banco de banda y el total), **Gran Cámara** con aviso de **¡Recompensa!**, **piedra angular** y **puntuación M+**, **blasones**, **llaves de arca** y **piedras de valor**, **descanso** que sigue contando sin conectarte, y cuándo jugaste por última vez
 - Pasa el ratón por un personaje para ver bloqueos, monedas con topes, profesiones y la cámara en detalle

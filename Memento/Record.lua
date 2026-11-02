@@ -254,36 +254,36 @@ end
 f:SetScript("OnEvent", function(_, event, ...)
 	if event == "ADDON_LOADED" then
 		if ... ~= addonName then return end
-		CronicaDB = CronicaDB or {}
+		MementoDB = MementoDB or {}
 		for k, v in pairs(DEFAULTS) do
-			if CronicaDB[k] == nil then CronicaDB[k] = type(v) == "table" and {} or v end
+			if MementoDB[k] == nil then MementoDB[k] = type(v) == "table" and {} or v end
 		end
-		ns.db = CronicaDB
+		ns.db = MementoDB
 		return
 	end
 	if not ns.db then return end
 	local ok, err = pcall(handlers[event], ...)
-	if not ok and ns.debug then print("|cffffc259Cronica|r", event, err) end
+	if not ok and ns.debug then print("|cffffc259Memento|r", event, err) end
 end)
 
-SLASH_CRONICA1 = "/cronica"
-SLASH_CRONICA2 = "/chronicle"
-SLASH_CRONICA3 = "/diario"
-SlashCmdList.CRONICA = function(msg)
+SLASH_MEMENTO1 = "/memento"
+SLASH_MEMENTO2 = "/cronica"
+SLASH_MEMENTO3 = "/diario"
+SlashCmdList.MEMENTO = function(msg)
 	if strtrim(msg or ""):lower() == "debug" then
 		ns.debug = not ns.debug
-		print("|cffffc259Cronica|r debug", ns.debug and "on" or "off")
+		print("|cffffc259Memento|r debug", ns.debug and "on" or "off")
 		return
 	end
 	ns.Toggle()
 end
 
-function Cronica_OnAddonCompartmentClick()
+function Memento_OnAddonCompartmentClick()
 	ns.Toggle()
 end
 
-BINDING_HEADER_CRONICA = L.Title
-BINDING_NAME_CRONICA_TOGGLE = L.Title
-function Cronica_Toggle()
+BINDING_HEADER_MEMENTO = L.Title
+BINDING_NAME_MEMENTO_TOGGLE = L.Title
+function Memento_Toggle()
 	ns.Toggle()
 end

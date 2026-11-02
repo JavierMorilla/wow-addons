@@ -1,4 +1,4 @@
-# Rastro
+# Treasure Trail
 
 ## 0.1.0
 

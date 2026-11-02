@@ -20,7 +20,7 @@ local REST_CAP = 1.5     -- rested pool caps at one and a half levels
 local function Try(label, fn, ...)
 	local ok, err = pcall(fn, ...)
 	if not ok and ns.debug then
-		print("|cff66ccffAltboard|r", label, err)
+		print("|cff66ccffBarracks|r", label, err)
 	end
 end
 

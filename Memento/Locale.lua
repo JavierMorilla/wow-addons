@@ -1,18 +1,18 @@
 local _, ns = ...
 
 local L = {
-	Title = "Chronicle",
+	Title = "Memento",
 	AllCharacters = "All characters",
 	Search = "Search...",
 	Import = "Import past achievements",
 	Importing = "Importing... %d",
-	Imported = "Imported %d achievements into the chronicle.",
+	Imported = "Imported %d achievements into the journal.",
 	Screenshots = "Automatic screenshots",
 	ScreenshotSaved = "Screenshot saved",
 	Entries = "%d entries",
 	Since = "since %s",
 	Empty = "Nothing here yet. Go make some history.",
-	Loaded = "is writing your story. Type |cffffd100/chronicle|r to open it.",
+	Loaded = "is writing your story. Type |cffffd100/memento|r to open it.",
 	Today = "Today",
 	Yesterday = "Yesterday",
 	-- filters
@@ -25,7 +25,7 @@ local L = {
 	Renown = "Renown",
 	Zones = "Places",
 	-- entries
-	Started = "The chronicle begins",
+	Started = "The journal begins",
 	ReachedLevel = "Reached level %d",
 	Points = "%d points",
 	Defeated = "First victory: %s",
@@ -48,7 +48,6 @@ end
 
 local locale = GetLocale()
 if locale == "esES" or locale == "esMX" then
-	L.Title = "Crónica"
 	L.AllCharacters = "Todos"
 	L.Search = "Buscar..."
 	L.Import = "Importar logros anteriores"
@@ -59,7 +58,7 @@ if locale == "esES" or locale == "esMX" then
 	L.Entries = "%d hitos"
 	L.Since = "desde %s"
 	L.Empty = "Aún no hay nada aquí. Sal a escribir historia."
-	L.Loaded = "está escribiendo tu historia. Escribe |cffffd100/cronica|r para abrirla."
+	L.Loaded = "está escribiendo tu historia. Escribe |cffffd100/memento|r para abrirla."
 	L.Today = "Hoy"
 	L.Yesterday = "Ayer"
 	L.All = "Todo"

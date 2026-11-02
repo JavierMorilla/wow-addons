@@ -1,7 +1,7 @@
 local _, ns = ...
 
 local L = {
-	Title = "Altboard",
+	Title = "Barracks",
 	Character = "Character",
 	ItemLevel = "iLvl",
 	Gold = "Gold",

@@ -3,8 +3,8 @@
 // when CF_API_TOKEN is set and tools/curseforge.json has the addon's project
 // id, the same zip on CurseForge.
 //
-//   node tools/release.mjs Altboard            package and publish
-//   node tools/release.mjs Altboard --dry-run  only build dist/Altboard-<version>.zip
+//   node tools/release.mjs Barracks            package and publish
+//   node tools/release.mjs Barracks --dry-run  only build dist/Barracks-<version>.zip
 //
 // The version comes from the addon's .toc, the release notes from the matching
 // "## <version>" section of its CHANGELOG.md, and the CurseForge game versions

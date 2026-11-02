@@ -1,12 +1,12 @@
 ## Interface: 110205, 110207
-## Title: |cff66ccffAltboard|r
+## Title: |cff66ccffBarracks|r
 ## Notes: Every alt at a glance: item level, gold, Great Vault, keystone, crests, coffer keys, lockouts and rested XP.
 ## Notes-esES: Todos tus alts de un vistazo: nivel de objeto, oro, Gran Cámara, piedra angular, blasones, llaves, bloqueos y descanso.
 ## Author: Morigoll
 ## Version: 0.1.0
-## SavedVariables: AltboardDB
+## SavedVariables: BarracksDB
 ## IconTexture: Interface\Icons\INV_Misc_Book_09
-## AddonCompartmentFunc: Altboard_OnAddonCompartmentClick
+## AddonCompartmentFunc: Barracks_OnAddonCompartmentClick
 
 Locale.lua
 Collect.lua

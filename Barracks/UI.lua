@@ -40,12 +40,12 @@ local function Font(name, path, size, color)
 	return f
 end
 local F = {
-	title = Font("AltboardFontTitle", FONT, 17, C.text),
-	text = Font("AltboardFontText", FONT, 12, C.text),
-	small = Font("AltboardFontSmall", FONT, 10, C.dim),
-	header = Font("AltboardFontHeader", FONT, 10, C.dim),
-	num = Font("AltboardFontNum", FONT_NUM, 15, C.text),
-	numSmall = Font("AltboardFontNumSmall", FONT_NUM, 13, C.text),
+	title = Font("BarracksFontTitle", FONT, 17, C.text),
+	text = Font("BarracksFontText", FONT, 12, C.text),
+	small = Font("BarracksFontSmall", FONT, 10, C.dim),
+	header = Font("BarracksFontHeader", FONT, 10, C.dim),
+	num = Font("BarracksFontNum", FONT_NUM, 15, C.text),
+	numSmall = Font("BarracksFontNumSmall", FONT_NUM, 13, C.text),
 }
 
 local function Text(parent, font, layer)
@@ -291,7 +291,7 @@ local function OpenRowMenu(row)
 			root:CreateButton("|cffff6060" .. L.Delete .. "|r", function()
 				ns.db.chars[guid] = nil
 				ns.db.hidden[guid] = nil
-				print("|cff66ccffAltboard|r " .. L.Deleted:format(rec.name or "?"))
+				print("|cff66ccffBarracks|r " .. L.Deleted:format(rec.name or "?"))
 				ns.Refresh()
 			end)
 		end
@@ -596,7 +596,7 @@ local function CreateHeaderButton(parent, col)
 end
 
 local function CreateWindow()
-	local f = CreateFrame("Frame", "AltboardFrame", UIParent, "BackdropTemplate")
+	local f = CreateFrame("Frame", "BarracksFrame", UIParent, "BackdropTemplate")
 	f:SetSize(TOTAL_W, 400)
 	f:SetFrameStrata("HIGH")
 	f:SetToplevel(true)
@@ -618,7 +618,7 @@ local function CreateWindow()
 	else
 		f:SetPoint("CENTER")
 	end
-	tinsert(UISpecialFrames, "AltboardFrame")
+	tinsert(UISpecialFrames, "BarracksFrame")
 
 	-- A soft accent glow along the top edge
 	local glow = f:CreateTexture(nil, "BORDER")
@@ -769,12 +769,12 @@ end
 function ns.SetMinimapHidden(hidden)
 	ns.db.minimapHide = hidden
 	if minimapButton then minimapButton:SetShown(not hidden) end
-	if hidden then print("|cff66ccffAltboard|r " .. L.MinimapHidden) end
+	if hidden then print("|cff66ccffBarracks|r " .. L.MinimapHidden) end
 end
 
 function ns.CreateMinimapButton()
 	if minimapButton then return end
-	local b = CreateFrame("Button", "AltboardMinimapButton", Minimap)
+	local b = CreateFrame("Button", "BarracksMinimapButton", Minimap)
 	b:SetSize(31, 31)
 	b:SetFrameStrata("MEDIUM")
 	b:SetFrameLevel(8)

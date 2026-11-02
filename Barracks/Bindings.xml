@@ -1,0 +1,5 @@
+<Bindings>
+	<Binding name="BARRACKS_TOGGLE" header="BARRACKS" category="ADDONS">
+		Barracks_Toggle()
+	</Binding>
+</Bindings>

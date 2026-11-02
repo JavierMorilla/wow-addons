@@ -1,4 +1,4 @@
-# Altboard
+# Barracks
 
 ## 0.1.0
 

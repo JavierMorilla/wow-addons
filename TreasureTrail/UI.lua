@@ -35,11 +35,11 @@ local function Font(name, size, color)
 	return f
 end
 local F = {
-	title = Font("RastroFontTitle", 17, C.text),
-	text = Font("RastroFontText", 12, C.text),
-	small = Font("RastroFontSmall", 10, C.dim),
-	header = Font("RastroFontHeader", 12, C.accent),
-	pill = Font("RastroFontPill", 11, C.text),
+	title = Font("TreasureTrailFontTitle", 17, C.text),
+	text = Font("TreasureTrailFontText", 12, C.text),
+	small = Font("TreasureTrailFontSmall", 10, C.dim),
+	header = Font("TreasureTrailFontHeader", 12, C.accent),
+	pill = Font("TreasureTrailFontPill", 11, C.text),
 }
 
 local function Text(parent, font)
@@ -383,7 +383,7 @@ function ns.Refresh()
 end
 
 local function CreateWindow()
-	local f = CreateFrame("Frame", "RastroFrame", UIParent, "BackdropTemplate")
+	local f = CreateFrame("Frame", "TreasureTrailFrame", UIParent, "BackdropTemplate")
 	f:SetSize(W, H)
 	f:SetFrameStrata("HIGH")
 	f:SetToplevel(true)
@@ -404,7 +404,7 @@ local function CreateWindow()
 	else
 		f:SetPoint("RIGHT", -260, 0)
 	end
-	tinsert(UISpecialFrames, "RastroFrame")
+	tinsert(UISpecialFrames, "TreasureTrailFrame")
 
 	local glow = f:CreateTexture(nil, "BORDER")
 	glow:SetPoint("TOPLEFT", 1, -1)
@@ -530,7 +530,7 @@ function ns.UpdatePill()
 end
 
 local function CreatePill()
-	local p = CreateFrame("Button", "RastroPill", UIParent, "BackdropTemplate")
+	local p = CreateFrame("Button", "TreasureTrailPill", UIParent, "BackdropTemplate")
 	p:SetHeight(22)
 	p:SetFrameStrata("MEDIUM")
 	Backdrop(p, { 0.047, 0.051, 0.063, 0.88 }, C.border)
@@ -628,9 +628,9 @@ for event in pairs(RESCAN_EVENTS) do events:RegisterEvent(event) end
 events:SetScript("OnEvent", function(_, event, arg1, arg2)
 	if event == "ADDON_LOADED" then
 		if arg1 ~= addonName then return end
-		RastroDB = RastroDB or {}
-		if RastroDB.pill == nil then RastroDB.pill = true end
-		ns.db = RastroDB
+		TreasureTrailDB = TreasureTrailDB or {}
+		if TreasureTrailDB.pill == nil then TreasureTrailDB.pill = true end
+		ns.db = TreasureTrailDB
 		pill = CreatePill()
 	elseif event == "PLAYER_ENTERING_WORLD" then
 		browse = nil
@@ -647,16 +647,17 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2)
 	end
 end)
 
-SLASH_RASTRO1 = "/rastro"
-SLASH_RASTRO2 = "/trail"
-SlashCmdList.RASTRO = function() ns.Toggle() end
+SLASH_TREASURETRAIL1 = "/trail"
+SLASH_TREASURETRAIL2 = "/treasuretrail"
+SLASH_TREASURETRAIL3 = "/rastro"
+SlashCmdList.TREASURETRAIL = function() ns.Toggle() end
 
-function Rastro_OnAddonCompartmentClick()
+function TreasureTrail_OnAddonCompartmentClick()
 	ns.Toggle()
 end
 
-BINDING_HEADER_RASTRO = L.Title
-BINDING_NAME_RASTRO_TOGGLE = L.Title
-function Rastro_Toggle()
+BINDING_HEADER_TREASURETRAIL = L.Title
+BINDING_NAME_TREASURETRAIL_TOGGLE = L.Title
+function TreasureTrail_Toggle()
 	ns.Toggle()
 end

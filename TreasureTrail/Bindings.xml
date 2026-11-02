@@ -1,0 +1,5 @@
+<Bindings>
+	<Binding name="TREASURETRAIL_TOGGLE" header="TREASURETRAIL" category="ADDONS">
+		TreasureTrail_Toggle()
+	</Binding>
+</Bindings>
