@@ -586,15 +586,18 @@ local function DoScan()
 			if result then browse.difficultyID = result.difficultyID end
 			pending = pending or status == "pending"
 		end
-		ns.UpdatePill()
-		ns.Refresh()
-		-- Item data arrives a moment after it is first asked for
+		-- Item data arrives a moment after it is first asked for; some never
+		-- does, so stop waiting (and stop saying so) after a few tries.
 		if pending and retries < MAX_RETRIES then
 			retries = retries + 1
 			ns.Rescan(1.5)
-		elseif not pending then
+		else
 			retries = 0
+			if ns.state.instanceStatus == "pending" then ns.state.instanceStatus = nil end
+			if browse and browse.status == "pending" then browse.status = nil end
 		end
+		ns.UpdatePill()
+		ns.Refresh()
 	end)
 end
 
