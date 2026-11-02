@@ -188,9 +188,11 @@ local function InitFrameRow(row, data)
 		row.text:SetText(data.header)
 		row.count:SetPoint("LEFT", row.text, "RIGHT", 8, 0)
 		row.count:SetText(data.count and data.count > 0 and data.count or "")
-		row.rule:SetPoint("LEFT", row.count, "RIGHT", 8, 0)
-		row.rule:SetPoint("RIGHT", -12, 0)
-		row.rule:SetPoint("BOTTOM", 0, 12)
+		-- Placed from measured widths: anchoring to the font strings' edges
+		-- left the rule missing on some recycled rows.
+		local x = 14 + row.text:GetUnboundedStringWidth() + 8 + row.count:GetUnboundedStringWidth() + 10
+		row.rule:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", x, 13)
+		row.rule:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -12, 13)
 		row.rule:Show()
 	else -- boss
 		row.text:SetFontObject(F.text)

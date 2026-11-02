@@ -275,11 +275,15 @@ local function InitDay(row, data)
 		row.text:SetPoint("BOTTOMLEFT", 16, 6)
 		row.rule = row:CreateTexture(nil, "ARTWORK")
 		row.rule:SetHeight(1)
-		row.rule:SetPoint("LEFT", row.text, "RIGHT", 10, 0)
-		row.rule:SetPoint("RIGHT", -12, 0)
 		row.rule:SetColorTexture(unpack(C.line))
 	end
 	row.text:SetText(data.day)
+	-- Placed from the measured text width: anchoring to the font string's edge
+	-- left the rule missing on some recycled rows.
+	local x = 16 + row.text:GetUnboundedStringWidth() + 10
+	row.rule:ClearAllPoints()
+	row.rule:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", x, 12)
+	row.rule:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -12, 12)
 end
 
 -- Window ------------------------------------------------------------------------------

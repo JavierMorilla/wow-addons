@@ -49,7 +49,7 @@ end
 local locale = GetLocale()
 if locale == "esES" or locale == "esMX" then
 	L.Title = "Crónica"
-	L.AllCharacters = "Todos los personajes"
+	L.AllCharacters = "Todos"
 	L.Search = "Buscar..."
 	L.Import = "Importar logros anteriores"
 	L.Importing = "Importando... %d"
