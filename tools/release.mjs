@@ -3,8 +3,9 @@
 // when CF_API_TOKEN is set and tools/curseforge.json has the addon's project
 // id, the same zip on CurseForge.
 //
-//   node tools/release.mjs Barracks            package and publish
-//   node tools/release.mjs Barracks --dry-run  only build dist/Barracks-<version>.zip
+//   node tools/release.mjs Barracks                    package and publish
+//   node tools/release.mjs Barracks --dry-run          only build dist/Barracks-<version>.zip
+//   node tools/release.mjs Barracks --curseforge-only  upload a version already released on GitHub
 //
 // The version comes from the addon's .toc, the release notes from the matching
 // "## <version>" section of its CHANGELOG.md, and the CurseForge game versions
@@ -108,16 +109,23 @@ async function main() {
   const zip = buildZip(name, version);
   console.log(`built ${path.relative(ROOT, zip)}`);
   if (dryRun) return;
-
-  if (run('git', ['status', '--porcelain'])) fail('commit or stash your changes first');
   const tag = `${name.toLowerCase()}-v${version}`;
-  if (run('git', ['tag', '--list', tag])) fail(`tag ${tag} already exists: bump ## Version in ${name}.toc`);
 
-  const branch = run('git', ['rev-parse', '--abbrev-ref', 'HEAD']);
-  run('git', ['push', 'origin', branch], { stdio: ['ignore', 'inherit', 'inherit'] });
-  run('gh', ['release', 'create', tag, zip, '--title', `${name} ${version}`, '--notes', notes, '--target', branch]);
-  run('git', ['fetch', '--tags', '--quiet']);
-  console.log(`GitHub: released ${tag}`);
+  if (process.argv.includes('--curseforge-only')) {
+    // Same files as the GitHub release: package from the tagged commit
+    run('git', ['fetch', '--tags', '--quiet']);
+    if (!run('git', ['tag', '--list', tag])) fail(`tag ${tag} does not exist: release it on GitHub first`);
+    if (run('git', ['diff', '--name-only', tag, '--', name])) fail(`${name}/ changed since ${tag}: bump the version instead`);
+  } else {
+    if (run('git', ['status', '--porcelain'])) fail('commit or stash your changes first');
+    if (run('git', ['tag', '--list', tag])) fail(`tag ${tag} already exists: bump ## Version in ${name}.toc`);
+
+    const branch = run('git', ['rev-parse', '--abbrev-ref', 'HEAD']);
+    run('git', ['push', 'origin', branch], { stdio: ['ignore', 'inherit', 'inherit'] });
+    run('gh', ['release', 'create', tag, zip, '--title', `${name} ${version}`, '--notes', notes, '--target', branch]);
+    run('git', ['fetch', '--tags', '--quiet']);
+    console.log(`GitHub: released ${tag}`);
+  }
 
   const ids = JSON.parse(fs.readFileSync(path.join(ROOT, 'tools', 'curseforge.json'), 'utf8'));
   if (!ids[name]) {
