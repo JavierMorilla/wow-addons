@@ -25,7 +25,8 @@ function fail(msg) {
 }
 
 function run(cmd, args, opts = {}) {
-  return execFileSync(cmd, args, { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'], ...opts }).trim();
+  // stdout is null when the caller lets the command print straight to the console
+  return (execFileSync(cmd, args, { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'], ...opts }) ?? '').trim();
 }
 
 function readToc(name) {
