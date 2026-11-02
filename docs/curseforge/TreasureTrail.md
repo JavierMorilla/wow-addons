@@ -28,7 +28,7 @@
 
 Zone results come from the source text the game gives each mount and pet, so an item whose source does not name the zone will not show there.
 
-Made for retail **The War Within (11.2.5)**. Also runs on **Midnight (12.1)** and **WoW Forever**, as a beta: not yet tested in game there, so please report any error.
+Made for retail **The War Within (11.2.5)**. Also runs on **Midnight (12.1)** and **WoW Forever** (not yet tested in game there, so please report any error).
 
 ---
 

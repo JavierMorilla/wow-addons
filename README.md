@@ -1,6 +1,6 @@
 # wow-addons
 
-World of Warcraft addons by **Morigoll**, for retail The War Within 11.2.5, with beta support for Midnight 12.1 and WoW Forever (interfaces 110205, 110207, 120105, 120107, 16001). No libraries, English and Spanish, one dark visual style.
+World of Warcraft addons by **Morigoll**, for retail The War Within 11.2.5, also running on Midnight 12.1 and WoW Forever (interfaces 110205, 110207, 120105, 120107, 16001). No libraries, English and Spanish, one dark visual style.
 
 | | Addon | What it does |
 |---|---|---|
