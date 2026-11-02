@@ -1,5 +1,12 @@
 # Barracks
 
+## 0.2.0
+
+Beta: runs on retail Midnight (12.1.5, 12.1.7) and WoW Forever as well as The War Within. Not yet tested in game on those clients; please report any error.
+
+- On WoW Forever the Great Vault, keystone, crest and coffer key columns are hidden, since that content does not exist there
+- Specialization is read through the current API instead of the deprecated one
+
 ## 0.1.0
 
 First release.

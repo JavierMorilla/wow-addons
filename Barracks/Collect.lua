@@ -40,10 +40,12 @@ local function CollectBasics(rec)
 	rec.ilvlOverall = overall
 
 	-- The server sometimes reports spec 0 or no icon; keep what we had then.
-	local spec = GetSpecialization()
+	-- The bare globals are deprecated shims since 11.x; prefer the namespace.
+	local SpecInfo = C_SpecializationInfo or {}
+	local spec = (SpecInfo.GetSpecialization or GetSpecialization)()
 	local specID, specName, icon, role, _
 	if spec then
-		specID, specName, _, icon, role = GetSpecializationInfo(spec)
+		specID, specName, _, icon, role = (SpecInfo.GetSpecializationInfo or GetSpecializationInfo)(spec)
 	end
 	if specID and specID > 0 then
 		if (not icon or icon == 0) and GetSpecializationInfoByID then

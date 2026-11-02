@@ -1,6 +1,6 @@
 # wow-addons
 
-World of Warcraft addons by **Morigoll**, for retail The War Within 11.2.5 (interface 110205). No libraries, English and Spanish, one dark visual style.
+World of Warcraft addons by **Morigoll**, for retail The War Within 11.2.5, with beta support for Midnight 12.1 and WoW Forever (interfaces 110205, 110207, 120105, 120107, 16001). No libraries, English and Spanish, one dark visual style.
 
 | | Addon | What it does |
 |---|---|---|
@@ -8,7 +8,7 @@ World of Warcraft addons by **Morigoll**, for retail The War Within 11.2.5 (inte
 | <img src="docs/media/Keepsake-logo.png" width="64"> | **Keepsake** | A journal of each character's story, with automatic screenshots |
 | <img src="docs/media/TreasureTrail-logo.png" width="64"> | **Treasure Trail** | What you can still collect in this zone, dungeon or raid |
 
-**Install:** download the zip of the addon you want from [Releases](../../releases), and extract it into `World of Warcraft\_retail_\Interface\AddOns`.
+**Install:** download the zip of the addon you want from [Releases](../../releases), and extract it into your game client's `Interface\AddOns` folder (`World of Warcraft\_retail_\Interface\AddOns` for retail).
 
 ## Barracks
 

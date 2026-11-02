@@ -1,5 +1,12 @@
 # Treasure Trail
 
+## 0.2.0
+
+Beta: runs on retail Midnight (12.1.5, 12.1.7) and WoW Forever as well as The War Within. Not yet tested in game on those clients; please report any error.
+
+- The current dungeon or raid is found through the documented Adventure Guide API, with the older lookup kept as a fallback
+- If a client lacks the boss kill lookup, bosses simply stop showing as killed instead of raising an error
+
 ## 0.1.0
 
 First release.

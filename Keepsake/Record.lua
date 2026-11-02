@@ -112,7 +112,14 @@ function handlers.CHALLENGE_MODE_COMPLETED()
 	})
 end
 
+-- The same drop can arrive twice: as a loot chat line and as a loot toast.
+local recentLoot = {}
+
 local function RecordLoot(link)
+	-- Keyed by item ID: the two links may differ in their trailing fields
+	local itemID, now = C_Item.GetItemInfoInstant(link), GetTime()
+	if not itemID or (recentLoot[itemID] and now - recentLoot[itemID] < 10) then return end
+	recentLoot[itemID] = now
 	local quality = C_Item.GetItemQualityByID(link)
 	if not quality or quality < Enum.ItemQuality.Epic then return end
 	if quality < Enum.ItemQuality.Legendary and not C_Item.IsEquippableItem(link) then return end
@@ -126,14 +133,24 @@ local function RecordLoot(link)
 	})
 end
 
-function handlers.CHAT_MSG_LOOT(text, playerName, _, _, _, _, _, _, _, _, _, guid)
-	local me = UnitGUID("player")
-	if guid ~= me and Ambiguate(playerName or "", "short") ~= UnitName("player") then return end
-	local link = text and text:match("|c[^|]+|Hitem:.-|h|r")
-	if not link then return end
+local function OnItemLoaded(link)
 	local item = Item:CreateFromItemLink(link)
 	if item:IsItemEmpty() then return end
 	item:ContinueOnItemLoad(function() RecordLoot(link) end)
+end
+
+function handlers.CHAT_MSG_LOOT(text, playerName, _, _, _, _, _, _, _, _, _, guid)
+	-- Since 12.0 chat text can be a secret value in instances; the loot toast covers that case
+	if issecretvalue and (issecretvalue(text) or issecretvalue(playerName) or issecretvalue(guid)) then return end
+	local me = UnitGUID("player")
+	if guid ~= me and Ambiguate(playerName or "", "short") ~= UnitName("player") then return end
+	local link = text and text:match("|c[^|]+|Hitem:.-|h|r")
+	if link then OnItemLoaded(link) end
+end
+
+function handlers.SHOW_LOOT_TOAST(typeIdentifier, link)
+	if typeIdentifier ~= "item" or not link or (issecretvalue and issecretvalue(link)) then return end
+	OnItemLoaded(link)
 end
 
 function handlers.NEW_MOUNT_ADDED(mountID)

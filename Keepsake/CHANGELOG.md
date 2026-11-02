@@ -1,5 +1,12 @@
 # Keepsake
 
+## 0.2.0
+
+Beta: runs on retail Midnight (12.1.5, 12.1.7) and WoW Forever as well as The War Within. Not yet tested in game on those clients; please report any error.
+
+- Clicking an achievement opens it again on Midnight, where the function behind it was renamed
+- Epic loot is also recorded from the loot toast, so drops still make it into the journal when Midnight hides the loot chat line from addons
+
 ## 0.1.0
 
 First release.

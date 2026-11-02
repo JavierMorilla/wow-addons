@@ -237,8 +237,10 @@ local function BuildEntry(row)
 		local e = self.data.entry
 		if IsModifiedClick("CHATLINK") then
 			InsertLink(EntryLink(e))
-		elseif e.type == "achievement" and e.id and OpenAchievementFrameToAchievement then
-			OpenAchievementFrameToAchievement(e.id)
+		elseif e.type == "achievement" and e.id then
+			-- Renamed in 12.0
+			local open = ShowAchievementFrameForAchievement or OpenAchievementFrameToAchievement
+			if open then open(e.id) end
 		elseif e.type == "loot" and e.link and IsModifiedClick("DRESSUP") and DressUpItemLink then
 			DressUpItemLink(e.link)
 		end

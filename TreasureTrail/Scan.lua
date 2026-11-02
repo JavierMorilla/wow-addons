@@ -76,9 +76,14 @@ function ns.CurrentZone()
 	return info, mapID
 end
 
--- The Adventure Guide instance for the map the player stands on, walking up
--- through parent maps (a raid wing's map may not be linked itself).
+-- The Adventure Guide instance for the map the player stands on: from the
+-- instance's game map, else walking up the UI maps (a raid wing's map may not
+-- be linked itself) where the older EJ_GetInstanceForMap still exists.
 local function JournalInstanceForPlayer(mapID)
+	local gameMapID = select(8, GetInstanceInfo())
+	local id = gameMapID and C_EncounterJournal.GetInstanceForGameMap and C_EncounterJournal.GetInstanceForGameMap(gameMapID)
+	if id and id > 0 then return id end
+	if not EJ_GetInstanceForMap then return end
 	while mapID and mapID > 0 do
 		local id = EJ_GetInstanceForMap(mapID)
 		if id and id > 0 then return id end
@@ -148,6 +153,8 @@ end
 -- Boss names killed this lockout, from the saved-instance list.
 local function KilledBosses(instanceName, difficultyID)
 	local killed = {}
+	-- Undocumented; if a client drops it, bosses just stop showing as killed
+	if not GetSavedInstanceEncounterInfo then return killed end
 	for i = 1, GetNumSavedInstances() do
 		local name, _, reset, diff, locked, _, _, _, _, _, numEncounters = GetSavedInstanceInfo(i)
 		if locked and reset > 0 and name == instanceName and diff == difficultyID then

@@ -139,14 +139,14 @@ local COLUMNS = {
 	{ key = "name", label = L.Character, width = 214, align = "LEFT", value = function(r) return r.name or "" end },
 	{ key = "ilvl", label = L.ItemLevel, width = 62, align = "CENTER", value = function(r) return r.ilvl or 0 end },
 	{ key = "gold", label = L.Gold, width = 112, align = "RIGHT", value = function(r) return r.money or 0 end },
-	{ key = "vault", label = L.Vault, width = 150, align = "CENTER", value = function(r)
+	{ key = "vault", label = L.Vault, width = 150, align = "CENTER", modern = true, value = function(r)
 		return (ns.HasPendingReward(r) and 100 or 0) + VaultDone(r)
 	end },
-	{ key = "key", label = L.Keystone, width = 150, align = "LEFT", value = function(r) return r.score or 0 end },
-	{ key = "crests", label = L.Crests, width = 150, align = "CENTER", value = function(r)
+	{ key = "key", label = L.Keystone, width = 150, align = "LEFT", modern = true, value = function(r) return r.score or 0 end },
+	{ key = "crests", label = L.Crests, width = 150, align = "CENTER", modern = true, value = function(r)
 		return Qty(r, ns.CRESTS[4]) * 1e6 + Qty(r, ns.CRESTS[3])
 	end },
-	{ key = "keys", label = L.Keys, width = 56, align = "CENTER", value = function(r) return Qty(r, ns.COFFER_KEYS) end },
+	{ key = "keys", label = L.Keys, width = 56, align = "CENTER", modern = true, value = function(r) return Qty(r, ns.COFFER_KEYS) end },
 	{ key = "rested", label = L.Rested, width = 80, align = "CENTER", value = function(r) return ns.ProjectedRested(r) or -1 end },
 	{ key = "seen", label = L.LastSeen, width = 56, align = "RIGHT", value = function(r)
 		return r.guid == ns.currentGUID and math.huge or (r.lastSeen or 0)
@@ -154,8 +154,9 @@ local COLUMNS = {
 }
 local TOTAL_W = PAD
 for _, col in ipairs(COLUMNS) do
+	col.hidden = col.modern and ns.vanillaContent
 	col.x = TOTAL_W
-	TOTAL_W = TOTAL_W + col.width + 8
+	if not col.hidden then TOTAL_W = TOTAL_W + col.width + 8 end
 end
 TOTAL_W = TOTAL_W - 8 + PAD + 10 -- room for the scroll bar
 local COL = {}
@@ -183,42 +184,44 @@ local function ShowRowTooltip(row)
 			format("|c%s%.1f|r  |cff808080(%.1f)|r", ItemLevelColor(rec.ilvl), rec.ilvl, rec.ilvlOverall or rec.ilvl), 0.85, 0.85, 0.85)
 	end
 
-	Section(tt, L.Vault)
 	local stale = ns.IsStaleWeek(rec)
-	if ns.HasPendingReward(rec) then
-		tt:AddLine(L.RewardPendingLong, unpack(C.gold))
-	end
-	if stale then
-		tt:AddLine(L.OutOfDate, unpack(C.dim))
-	elseif rec.vault then
-		for _, vt in ipairs(ns.VAULT_TYPES) do
-			local parts, nextGoal = {}, nil
-			for i = 1, 3 do
-				local s = rec.vault[vt.key] and rec.vault[vt.key][i]
-				if s then
-					if s.progress >= s.threshold then
-						local label = VaultLevelText(vt.key, s.level)
-						if s.ilvl then label = label .. " " .. L.ItemLevelShort:format(s.ilvl) end
-						parts[#parts + 1] = "|c" .. Hex(VAULT_COLORS[vt.key]) .. label .. "|r"
-					elseif not nextGoal then
-						nextGoal = format("%d/%d", s.progress, s.threshold)
+	if not ns.vanillaContent then
+		Section(tt, L.Vault)
+		if ns.HasPendingReward(rec) then
+			tt:AddLine(L.RewardPendingLong, unpack(C.gold))
+		end
+		if stale then
+			tt:AddLine(L.OutOfDate, unpack(C.dim))
+		elseif rec.vault then
+			for _, vt in ipairs(ns.VAULT_TYPES) do
+				local parts, nextGoal = {}, nil
+				for i = 1, 3 do
+					local s = rec.vault[vt.key] and rec.vault[vt.key][i]
+					if s then
+						if s.progress >= s.threshold then
+							local label = VaultLevelText(vt.key, s.level)
+							if s.ilvl then label = label .. " " .. L.ItemLevelShort:format(s.ilvl) end
+							parts[#parts + 1] = "|c" .. Hex(VAULT_COLORS[vt.key]) .. label .. "|r"
+						elseif not nextGoal then
+							nextGoal = format("%d/%d", s.progress, s.threshold)
+						end
 					end
 				end
+				if nextGoal then parts[#parts + 1] = "|cff808080" .. nextGoal .. "|r" end
+				tt:AddDoubleLine(L[vt.key], table.concat(parts, "  "), 0.85, 0.85, 0.85)
 			end
-			if nextGoal then parts[#parts + 1] = "|cff808080" .. nextGoal .. "|r" end
-			tt:AddDoubleLine(L[vt.key], table.concat(parts, "  "), 0.85, 0.85, 0.85)
 		end
-	end
 
-	Section(tt, L.Keystone)
-	if rec.key then
-		local keyText = format("+%d %s", rec.key.level or 0, rec.key.name or "")
-		if stale then keyText = keyText .. " |cff808080(" .. L.StaleWeek .. ")|r" end
-		tt:AddLine(keyText, 1, 1, 1)
-	else
-		tt:AddLine(L.NoKey, unpack(C.dim))
+		Section(tt, L.Keystone)
+		if rec.key then
+			local keyText = format("+%d %s", rec.key.level or 0, rec.key.name or "")
+			if stale then keyText = keyText .. " |cff808080(" .. L.StaleWeek .. ")|r" end
+			tt:AddLine(keyText, 1, 1, 1)
+		else
+			tt:AddLine(L.NoKey, unpack(C.dim))
+		end
+		tt:AddDoubleLine(L.Score, ScoreText(rec.score), 0.85, 0.85, 0.85)
 	end
-	tt:AddDoubleLine(L.Score, ScoreText(rec.score), 0.85, 0.85, 0.85)
 
 	if rec.currencies then
 		Section(tt, L.Currencies)
@@ -333,32 +336,42 @@ local function BuildRow(row)
 	row.gold = Text(row, F.numSmall)
 	AnchorCell(row, row.gold, COL.gold)
 
+	-- Columns that may be hidden keep their widgets on a holder frame of their own
+	local function Holder(key)
+		local h = CreateFrame("Frame", nil, row)
+		h:SetAllPoints()
+		h:SetShown(not COL[key].hidden)
+		return h
+	end
+
 	-- Great Vault: three groups of three pips
+	local vault = Holder("vault")
 	row.pips = {}
 	local pipW, gap, groupGap = 11, 3, 12
 	local groupW = pipW * 3 + gap * 2
 	local startX = COL.vault.x + (COL.vault.width - (groupW * 3 + groupGap * 2)) / 2
 	for g = 1, 3 do
 		for s = 1, 3 do
-			local pip = row:CreateTexture(nil, "ARTWORK")
+			local pip = vault:CreateTexture(nil, "ARTWORK")
 			pip:SetSize(pipW, 11)
 			pip:SetPoint("LEFT", row, "LEFT", startX + (g - 1) * (groupW + groupGap) + (s - 1) * (pipW + gap), 0)
 			row.pips[(g - 1) * 3 + s] = pip
 		end
 	end
-	row.vaultReward = Text(row, F.text)
+	row.vaultReward = Text(vault, F.text)
 	AnchorCell(row, row.vaultReward, COL.vault)
 	row.vaultReward:SetTextColor(unpack(C.gold))
 
-	row.key = Text(row, F.text)
+	local key = Holder("key")
+	row.key = Text(key, F.text)
 	AnchorCell(row, row.key, COL.key, 7)
-	row.score = Text(row, F.small)
+	row.score = Text(key, F.small)
 	AnchorCell(row, row.score, COL.key, -8)
 
-	row.crests = Text(row, F.numSmall)
+	row.crests = Text(Holder("crests"), F.numSmall)
 	AnchorCell(row, row.crests, COL.crests)
 
-	row.keys = Text(row, F.numSmall)
+	row.keys = Text(Holder("keys"), F.numSmall)
 	AnchorCell(row, row.keys, COL.keys)
 
 	-- Rested: percentage over a thin bar
@@ -492,7 +505,8 @@ local function SortedList()
 			list[#list + 1] = { rec = rec }
 		end
 	end
-	local col = COL[db.sort] or COL.ilvl
+	local col = COL[db.sort]
+	if not col or col.hidden then col = COL.ilvl end
 	local desc = db.sortDesc
 	table.sort(list, function(a, b)
 		local va, vb = col.value(a.rec), col.value(b.rec)
@@ -508,11 +522,13 @@ end
 
 local function UpdateHeaders()
 	for _, col in ipairs(COLUMNS) do
-		local active = ns.db.sort == col.key
-		col.button.label:SetTextColor(unpack(active and C.accent or C.dim))
-		col.button.arrow:SetShown(active)
-		if active then
-			col.button.arrow:SetRotation(ns.db.sortDesc and math.pi or 0)
+		if col.button then
+			local active = ns.db.sort == col.key
+			col.button.label:SetTextColor(unpack(active and C.accent or C.dim))
+			col.button.arrow:SetShown(active)
+			if active then
+				col.button.arrow:SetRotation(ns.db.sortDesc and math.pi or 0)
+			end
 		end
 	end
 end
@@ -658,7 +674,7 @@ local function CreateWindow()
 	cols:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8" })
 	cols:SetBackdropColor(unpack(C.panel))
 	for _, col in ipairs(COLUMNS) do
-		CreateHeaderButton(cols, col)
+		if not col.hidden then CreateHeaderButton(cols, col) end
 	end
 
 	-- Character list

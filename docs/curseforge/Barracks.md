@@ -29,7 +29,7 @@ Hover a character for lockouts with time left, currencies with weekly and season
 - No libraries, no setup: log in once on each character and it appears
 - English and Spanish
 
-Made for retail **The War Within (11.2.5)**.
+Made for retail **The War Within (11.2.5)**. Also runs on **Midnight (12.1)** and **WoW Forever**, as a beta: not yet tested in game there, so please report any error. On WoW Forever the Great Vault, keystone, crest and coffer key columns are hidden, since that content does not exist there.
 
 ---
 

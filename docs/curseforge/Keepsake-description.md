@@ -18,7 +18,7 @@
 - Open it with `/keepsake`, the addon compartment, or a key binding
 - No libraries; English and Spanish
 
-Made for retail **The War Within (11.2.5)**.
+Made for retail **The War Within (11.2.5)**. Also runs on **Midnight (12.1)** and **WoW Forever**, as a beta: not yet tested in game there, so please report any error.
 
 ---
 

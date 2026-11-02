@@ -6,6 +6,7 @@
 //   node tools/release.mjs Barracks                    package and publish
 //   node tools/release.mjs Barracks --dry-run          only build dist/Barracks-<version>.zip
 //   node tools/release.mjs Barracks --curseforge-only  upload a version already released on GitHub
+//   node tools/release.mjs Barracks --beta             a GitHub pre-release and a CurseForge beta
 //
 // The version comes from the addon's .toc, the release notes from the matching
 // "## <version>" section of its CHANGELOG.md, and the CurseForge game versions
@@ -71,7 +72,7 @@ function buildZip(name, version) {
   return zip;
 }
 
-async function uploadToCurseForge(projectId, zip, { name, version, interfaces, notes }) {
+async function uploadToCurseForge(projectId, zip, { name, version, interfaces, notes, beta }) {
   const token = process.env.CF_API_TOKEN;
   const headers = { 'X-Api-Token': token };
   const res = await fetch(`${CF_API}/game/versions`, { headers });
@@ -89,7 +90,7 @@ async function uploadToCurseForge(projectId, zip, { name, version, interfaces, n
     changelogType: 'markdown',
     displayName: `${name} ${version}`,
     gameVersions: [...new Set(ids)],
-    releaseType: 'release',
+    releaseType: beta ? 'beta' : 'release',
   };
   const form = new FormData();
   form.append('metadata', JSON.stringify(metadata));
@@ -103,7 +104,8 @@ async function uploadToCurseForge(projectId, zip, { name, version, interfaces, n
 async function main() {
   const name = process.argv[2];
   const dryRun = process.argv.includes('--dry-run');
-  if (!name) fail('usage: node tools/release.mjs <AddonFolder> [--dry-run]');
+  const beta = process.argv.includes('--beta');
+  if (!name) fail('usage: node tools/release.mjs <AddonFolder> [--dry-run] [--beta] [--curseforge-only]');
 
   const { version, interfaces } = readToc(name);
   const notes = changelogFor(name, version);
@@ -123,7 +125,8 @@ async function main() {
 
     const branch = run('git', ['rev-parse', '--abbrev-ref', 'HEAD']);
     run('git', ['push', 'origin', branch], { stdio: ['ignore', 'inherit', 'inherit'] });
-    run('gh', ['release', 'create', tag, zip, '--title', `${name} ${version}`, '--notes', notes, '--target', branch]);
+    run('gh', ['release', 'create', tag, zip, '--title', `${name} ${version}`, '--notes', notes, '--target', branch,
+      ...(beta ? ['--prerelease'] : [])]);
     run('git', ['fetch', '--tags', '--quiet']);
     console.log(`GitHub: released ${tag}`);
   }
@@ -134,7 +137,7 @@ async function main() {
   } else if (!process.env.CF_API_TOKEN) {
     console.log('CurseForge: CF_API_TOKEN is not set; skipped');
   } else {
-    await uploadToCurseForge(ids[name], zip, { name, version, interfaces, notes });
+    await uploadToCurseForge(ids[name], zip, { name, version, interfaces, notes, beta });
   }
 }
 
