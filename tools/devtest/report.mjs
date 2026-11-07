@@ -4,6 +4,7 @@
 //   node tools/devtest/report.mjs "<client folder>"  any other client
 //   node tools/devtest/report.mjs --json             the raw report as JSON
 //   node tools/devtest/report.mjs --all              every step, not only the failed ones
+//   node tools/devtest/report.mjs --probe            the collections probe (/devtest probe)
 //
 // The game writes SavedVariables on /reload or logout, so run /devtest, then /reload.
 
@@ -141,6 +142,12 @@ const db = parseSavedVariables(fs.readFileSync(file, 'utf8')).MorigollDevTestDB;
 if (!db) throw new Error(`No MorigollDevTestDB in ${file}`);
 if (asJson) {
   console.log(JSON.stringify(db, null, 2));
+  process.exit(0);
+}
+
+if (args.includes('--probe')) {
+  if (!db.probe) throw new Error('No probe in the report: run /devtest probe, then /reload');
+  console.log(JSON.stringify(db.probe, null, 1));
   process.exit(0);
 }
 

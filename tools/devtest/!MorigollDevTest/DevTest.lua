@@ -30,10 +30,12 @@ local function Str(v)
 	return ok and s or "<?>"
 end
 
+-- Calls fn and returns all its results, or nothing if it fails.
+local function PassResults(ok, ...)
+	if ok then return ... end
+end
 local function Safe(fn, ...)
-	local ok, a, b, c, d = pcall(fn, ...)
-	if ok then return a, b, c, d end
-	return nil
+	return PassResults(pcall(fn, ...))
 end
 
 local function AddonFromText(s)
@@ -861,6 +863,148 @@ local function Start(only)
 	RunNext()
 end
 
+-- Collections probe (/devtest probe) ----------------------------------------------------
+-- What this client can tell about collections, to plan data of our own: which
+-- APIs answer, whether known items exist, and the map ids of zones and instances.
+
+-- Well-known vanilla collectibles (item ids), to see whether they exist and resolve.
+local PROBE_MOUNT_ITEMS = {
+	13335, -- Deathcharger's Reins (Baron Rivendare, Stratholme)
+	19872, -- Swift Razzashi Raptor (Bloodlord Mandokir, Zul'Gurub)
+	19902, -- Swift Zulian Tiger (High Priest Thekal, Zul'Gurub)
+	21321, -- Red Qiraji Resonating Crystal (Ahn'Qiraj)
+	13086, -- Reins of the Winterspring Frostsaber (quest)
+	5665,  -- Horn of the Dire Wolf (orc vendor)
+	13334, -- Green Skeletal Warhorse (undead vendor)
+}
+local PROBE_PET_ITEMS = {
+	8494,  -- Parrot Cage (Hyacinth Macaw), pirates
+	8485,  -- Cat Carrier (Bombay), vendor
+	10822, -- Dark Whelpling
+	8499,  -- Tiny Crimson Whelpling
+	11474, -- Sprite Darter Egg
+	11026, -- Tree Frog Box
+	10398, -- Mechanical Chicken (quest)
+}
+
+local function ItemProbe(itemID)
+	local r = { id = itemID }
+	local name, link, quality, ilvl, minLevel, itemType, subType, _, equipLoc, icon, _, classID, subclassID = Safe(C_Item.GetItemInfo, itemID)
+	r.name, r.quality, r.classID, r.subclassID, r.equipLoc = name, quality, classID, subclassID, equipLoc
+	r.exists = Safe(C_Item.DoesItemExistByID, itemID)
+	local spellName, spellID = Safe(C_Item.GetItemSpell, itemID)
+	r.spell, r.spellID = spellName, spellID
+	if C_MountJournal.GetMountFromItem then r.mountID = Safe(C_MountJournal.GetMountFromItem, itemID) end
+	if r.mountID then
+		local _, _, _, _, _, _, _, _, _, _, collected = Safe(C_MountJournal.GetMountInfoByID, r.mountID)
+		r.mountCollected = collected
+	end
+	if C_PetJournal.GetPetInfoByItemID then
+		local petName, _, _, _, _, _, _, _, _, _, _, _, speciesID = Safe(C_PetJournal.GetPetInfoByItemID, itemID)
+		r.petName, r.speciesID = petName, speciesID
+		if speciesID then r.petOwned = Safe(C_PetJournal.GetNumCollectedInfo, speciesID) end
+	end
+	if C_ToyBox and C_ToyBox.GetToyInfo then r.toy = Safe(C_ToyBox.GetToyInfo, itemID) ~= nil end
+	if C_TransmogCollection and C_TransmogCollection.GetItemInfo then
+		r.appearanceID, r.sourceID = Safe(C_TransmogCollection.GetItemInfo, itemID)
+	end
+	r.count = Safe(C_Item.GetItemCount, itemID, true)
+	return r
+end
+
+local function BuildProbe()
+	local probe = { at = date("%Y-%m-%d %H:%M:%S"), env = Env() }
+
+	probe.expansion = { level = Safe(GetExpansionLevel), server = Safe(GetServerExpansionLevel), maxLevel = Safe(GetMaxLevelForPlayerExpansion) }
+
+	-- Mount journal: the client's own list, with spell ids to match items against.
+	local mounts, collected = {}, 0
+	for _, id in ipairs(Safe(C_MountJournal.GetMountIDs) or {}) do
+		local name, spellID, _, _, usable, sourceType, _, factionSpecific, faction, hide, isCollected = Safe(C_MountJournal.GetMountInfoByID, id)
+		local _, description, source = Safe(C_MountJournal.GetMountInfoExtraByID, id)
+		if isCollected then collected = collected + 1 end
+		mounts[#mounts + 1] = format("%d|%s|%s|src%s|fac%s|%s|%s%s", id, Str(spellID), Str(name), Str(sourceType),
+			factionSpecific and Str(faction) or "-", isCollected and "HAVE" or "no", hide and "hidden" or "shown",
+			(source and source ~= "") and ("|" .. source) or "")
+	end
+	probe.mounts = { count = #mounts, collected = collected, list = mounts }
+
+	-- Pets: journal counts, species that exist at all, and the old companion API.
+	local pets = {}
+	pets.numPets, pets.numOwned = Safe(C_PetJournal.GetNumPets)
+	local species, examples = 0, {}
+	for sid = 1, 6000 do
+		local name, _, petType, _, source, _, _, _, _, _, obtainable = Safe(C_PetJournal.GetPetInfoBySpeciesID, sid)
+		if name then
+			species = species + 1
+			if #examples < 12 then examples[#examples + 1] = format("%d %s obtainable=%s source=%s", sid, Str(name), Str(obtainable), Str(source)) end
+		end
+	end
+	pets.speciesWithName = species
+	pets.examples = examples
+	if GetNumCompanions then
+		pets.companions = Safe(GetNumCompanions, "CRITTER")
+		pets.companionMounts = Safe(GetNumCompanions, "MOUNT")
+	end
+	probe.pets = pets
+
+	-- Transmog: does the collection answer for what the player wears?
+	local tm = { api = C_TransmogCollection ~= nil }
+	if C_TransmogCollection then
+		tm.slots = {}
+		for slot = 1, 19 do
+			local itemID = GetInventoryItemID("player", slot)
+			if itemID then
+				local appearanceID, sourceID = Safe(C_TransmogCollection.GetItemInfo, itemID)
+				local has = Safe(C_TransmogCollection.PlayerHasTransmog, itemID)
+				local hasSource = sourceID and Safe(C_TransmogCollection.PlayerHasTransmogItemModifiedAppearance, sourceID)
+				tm.slots[#tm.slots + 1] = format("slot %d item %d appearance %s source %s hasItem %s hasSource %s", slot, itemID, Str(appearanceID), Str(sourceID), Str(has), Str(hasSource))
+			end
+		end
+	end
+	probe.transmog = tm
+
+	-- Toys
+	if C_ToyBox then
+		probe.toys = { num = Safe(C_ToyBox.GetNumToys), learned = Safe(C_ToyBox.GetNumLearnedDisplayedToys), total = Safe(C_ToyBox.GetNumTotalDisplayedToys) }
+	end
+
+	probe.mountItems, probe.petItems = {}, {}
+	for _, id in ipairs(PROBE_MOUNT_ITEMS) do probe.mountItems[#probe.mountItems + 1] = ItemProbe(id) end
+	for _, id in ipairs(PROBE_PET_ITEMS) do probe.petItems[#probe.petItems + 1] = ItemProbe(id) end
+
+	-- Zones and instances under Azeroth, with their ui map ids.
+	local function Children(mapType)
+		local out = {}
+		local list = Safe(C_Map.GetMapChildrenInfo, 947, mapType, true) or {}
+		for _, info in ipairs(list) do
+			local parent = Safe(C_Map.GetMapInfo, info.parentMapID)
+			out[#out + 1] = format("%d|%s|parent %d %s", info.mapID, Str(info.name), info.parentMapID or 0, parent and Str(parent.name) or "?")
+		end
+		table.sort(out)
+		return out
+	end
+	probe.zones = Children(Enum.UIMapType.Zone)
+	probe.dungeons = Children(Enum.UIMapType.Dungeon)
+	probe.instanceNow = { Safe(GetInstanceInfo) }
+	return probe
+end
+
+local function Probe()
+	for _, id in ipairs(PROBE_MOUNT_ITEMS) do Safe(C_Item.RequestLoadItemDataByID, id) end
+	for _, id in ipairs(PROBE_PET_ITEMS) do Safe(C_Item.RequestLoadItemDataByID, id) end
+	Banner("DevTest · sonda de colecciones…", 1, 0.85, 0.95)
+	C_Timer.After(3, function()
+		local ok, result = xpcall(BuildProbe, function(e) return Str(e) .. "\n" .. debugstack(2, 8, 0) end)
+		MorigollDevTestDB.probe = ok and result or { error = result }
+		local text = ok and format("Sonda hecha: %d monturas (%d tuyas), %d especies de mascota. Haz /reload para guardarla.", result.mounts.count, result.mounts.collected, result.pets.speciesWithName)
+			or "La sonda falló; haz /reload igualmente para guardar el error."
+		Banner(text, 0.45, 0.9, 0.6)
+		print("|cffff5ec4DevTest|r " .. text)
+		C_Timer.After(20, function() if not current then banner:Hide() end end)
+	end)
+end
+
 SLASH_MORIGOLLDEVTEST1 = "/devtest"
 SlashCmdList.MORIGOLLDEVTEST = function(msg)
 	msg = strtrim(msg or ""):lower()
@@ -868,6 +1012,8 @@ SlashCmdList.MORIGOLLDEVTEST = function(msg)
 		print(format("|cffff5ec4DevTest|r session: %d Lua errors, %d caught, %d blocked, %d warnings; handler %s",
 			Total(session.errors), Total(session.caught), Total(session.blocked), Total(session.warnings),
 			geterrorhandler() == handler and "installed" or "NOT installed"))
+	elseif msg == "probe" or msg == "sonda" then
+		Probe()
 	elseif msg == "stop" then
 		if current then Complete("parado a mano") end
 	else
