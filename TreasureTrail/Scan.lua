@@ -143,21 +143,28 @@ local function Collectible(itemID, link)
 		return C_Item.IsItemDataCachedByID(itemID) and nil or "pending"
 	end
 	local info = C_TransmogCollection.GetAppearanceInfoBySource(sourceID)
+	if not info and ns.Forever then
+		-- WoW Forever often has no appearance info for a source; ask about the source itself
+		info = { appearanceIsCollected = C_TransmogCollection.PlayerHasTransmogItemModifiedAppearance(sourceID) }
+	end
 	if info and not info.appearanceIsCollected then
 		local hasData, canCollect = C_TransmogCollection.PlayerCanCollectSource(sourceID)
 		if not hasData then return "pending" end
+		if ns.Forever then canCollect = ns.Forever.CanCollect(itemID) end
 		if canCollect then return "appearance", { sourceID = sourceID } end
 	end
 end
+ns.Collectible = Collectible
 
--- Boss names killed this lockout, from the saved-instance list.
+-- Boss names killed this lockout, from the saved-instance list; any
+-- difficulty when difficultyID is nil.
 local function KilledBosses(instanceName, difficultyID)
 	local killed = {}
 	-- Undocumented; if a client drops it, bosses just stop showing as killed
 	if not GetSavedInstanceEncounterInfo then return killed end
 	for i = 1, GetNumSavedInstances() do
 		local name, _, reset, diff, locked, _, _, _, _, _, numEncounters = GetSavedInstanceInfo(i)
-		if locked and reset > 0 and name == instanceName and diff == difficultyID then
+		if locked and reset > 0 and name == instanceName and (not difficultyID or diff == difficultyID) then
 			for e = 1, numEncounters do
 				local bossName, _, isKilled = GetSavedInstanceEncounterInfo(i, e)
 				if isKilled and bossName then killed[bossName] = true end
@@ -166,10 +173,12 @@ local function KilledBosses(instanceName, difficultyID)
 	end
 	return killed
 end
+ns.KilledBosses = KilledBosses
 
 -- Reads an instance's loot through the Adventure Guide API. The guide's own
 -- filters are put back afterwards so the Adventure Guide window is unaffected.
 function ns.ScanInstance(journalInstanceID, difficultyID)
+	if ns.Forever then return ns.Forever.ScanInstance(journalInstanceID) end
 	if EncounterJournal and EncounterJournal:IsShown() then
 		return nil, "busy"
 	end
@@ -257,15 +266,21 @@ function ns.Scan()
 	if inInstance then
 		-- Sources name the instance ("Zone: Icecrown Citadel"), not the zone outside
 		state.zoneName = GetInstanceInfo()
-		local journalID = JournalInstanceForPlayer(mapID)
+		local journalID
+		if ns.Forever then
+			journalID = ns.Forever.InstanceForPlayer()
+		else
+			journalID = JournalInstanceForPlayer(mapID)
+		end
 		if journalID then
 			local _, _, difficultyID = GetInstanceInfo()
 			state.instance, state.instanceStatus = ns.ScanInstance(journalID, difficultyID)
 		end
 	end
 
-	local found = ns.ScanZone(state.zoneName)
+	local found = ns.Forever and ns.Forever.ZoneItems(not inInstance and state.zoneMapID) or ns.ScanZone(state.zoneName)
 	state.mounts, state.pets, state.wild = found.mounts, found.pets, found.wild
+	state.zonePending = found.pending
 
 	-- A boss mount shows under its boss; drop it from the zone list
 	if state.instance then
@@ -284,10 +299,13 @@ function ns.Scan()
 
 	-- WoW Forever's client has no mount or pet source texts and an empty
 	-- Adventure Guide: an empty list there means "unknown", not "all collected".
+	-- (Unless our own data for it is loaded: see Forever.lua.)
 	local tiers = EJ_GetNumTiers and EJ_GetNumTiers() or 0
-	state.noData = index.pets ~= nil and #index.mounts == 0 and #index.pets == 0 and tiers == 0
+	state.noData = not ns.Forever and index.pets ~= nil and #index.mounts == 0 and #index.pets == 0 and tiers == 0
 
-	if not inInstance and state.zoneMapID then
+	if not inInstance and state.zoneMapID and ns.Forever then
+		state.entrances = ns.Forever.Entrances(state.zoneMapID)
+	elseif not inInstance and state.zoneMapID then
 		local ok, entrances = pcall(C_EncounterJournal.GetDungeonEntrancesForMap, state.zoneMapID)
 		state.entrances = ok and entrances or {}
 	end

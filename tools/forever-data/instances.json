@@ -1,0 +1,170 @@
+[
+ {
+  "id": 1,
+  "name": "Kalimdor"
+ },
+ {
+  "id": 13,
+  "name": "Test Dungeon"
+ },
+ {
+  "id": 25,
+  "name": "Scott Test"
+ },
+ {
+  "id": 29,
+  "name": "CashTest"
+ },
+ {
+  "id": 30,
+  "name": "Valle de Alterac"
+ },
+ {
+  "id": 33,
+  "name": "Castillo de Colmillo Oscuro"
+ },
+ {
+  "id": 34,
+  "name": "Mazmorras de Ventormenta"
+ },
+ {
+  "id": 35,
+  "name": "<unused>StormwindPrison"
+ },
+ {
+  "id": 36,
+  "name": "Minas de la Muerte"
+ },
+ {
+  "id": 37,
+  "name": "Cráter de Azshara"
+ },
+ {
+  "id": 42,
+  "name": "Collin's Test"
+ },
+ {
+  "id": 43,
+  "name": "Cuevas de los Lamentos"
+ },
+ {
+  "id": 44,
+  "name": "<unused> Monastery"
+ },
+ {
+  "id": 47,
+  "name": "Horado Rajacieno"
+ },
+ {
+  "id": 48,
+  "name": "Cavernas de Brazanegra"
+ },
+ {
+  "id": 70,
+  "name": "Uldaman"
+ },
+ {
+  "id": 90,
+  "name": "Gnomeregan"
+ },
+ {
+  "id": 109,
+  "name": "Templo Sumergido"
+ },
+ {
+  "id": 129,
+  "name": "Zahúrda Rajacieno"
+ },
+ {
+  "id": 169,
+  "name": "Sueño Esmeralda"
+ },
+ {
+  "id": 189,
+  "name": "Monasterio Escarlata"
+ },
+ {
+  "id": 209,
+  "name": "Zul'Farrak"
+ },
+ {
+  "id": 229,
+  "name": "Cumbre de Roca Negra"
+ },
+ {
+  "id": 230,
+  "name": "Profundidades de Roca Negra"
+ },
+ {
+  "id": 249,
+  "name": "Guarida de Onyxia"
+ },
+ {
+  "id": 269,
+  "name": "Cavernas del Tiempo"
+ },
+ {
+  "id": 289,
+  "name": "Scholomance"
+ },
+ {
+  "id": 309,
+  "name": "Zul'Gurub"
+ },
+ {
+  "id": 329,
+  "name": "Stratholme"
+ },
+ {
+  "id": 349,
+  "name": "Maraudon"
+ },
+ {
+  "id": 369,
+  "name": "Tranvía Subterráneo"
+ },
+ {
+  "id": 389,
+  "name": "Sima Ígnea"
+ },
+ {
+  "id": 409,
+  "name": "Núcleo de Magma"
+ },
+ {
+  "id": 429,
+  "name": "La Masacre"
+ },
+ {
+  "id": 449,
+  "name": "Cuartel JcJ de la Alianza"
+ },
+ {
+  "id": 450,
+  "name": "Cuartel JcJ de la Horda"
+ },
+ {
+  "id": 469,
+  "name": "Guarida Alanegra"
+ },
+ {
+  "id": 489,
+  "name": "Garganta Grito de Guerra"
+ },
+ {
+  "id": 509,
+  "name": "Ruinas de Ahn'Qiraj"
+ },
+ {
+  "id": 529,
+  "name": "Cuenca de Arathi"
+ },
+ {
+  "id": 531,
+  "name": "Templo de Ahn'Qiraj"
+ },
+ {
+  "id": 533,
+  "name": "Naxxramas"
+ }
+]

@@ -30,6 +30,12 @@ local L = {
 	ShowPill = "Show the pill",
 	PillDrag = "Click: open · Shift-drag: move",
 	SameNameNote = "Matched by zone name in the item's source text.",
+	SrcDrop = "Drop: %s",
+	SrcObject = "Container: %s",
+	SrcVendor = "Vendor: %s",
+	SrcQuest = "Quest: %s",
+	SrcMore = "and %d more",
+	FromPatch = "Arrives in patch %s",
 }
 
 local locale = GetLocale()
@@ -61,6 +67,12 @@ if locale == "esES" or locale == "esMX" then
 	L.ShowPill = "Mostrar la pastilla"
 	L.PillDrag = "Clic: abrir · Mayús+arrastrar: mover"
 	L.SameNameNote = "Encontrado por el nombre de la zona en el origen del objeto."
+	L.SrcDrop = "Botín: %s"
+	L.SrcObject = "Contenedor: %s"
+	L.SrcVendor = "Vendedor: %s"
+	L.SrcQuest = "Misión: %s"
+	L.SrcMore = "y %d más"
+	L.FromPatch = "Llega en el parche %s"
 end
 
 ns.L = L

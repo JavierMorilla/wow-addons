@@ -11,4 +11,6 @@
 
 Locale.lua
 Scan.lua
+ForeverData.lua
+Forever.lua
 UI.lua

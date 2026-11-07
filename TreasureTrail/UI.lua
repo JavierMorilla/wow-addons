@@ -282,8 +282,9 @@ end
 -- List ----------------------------------------------------------------------------------------
 
 local function AddInstance(list, inst)
-	local difficulty = inst.difficultyID and GetDifficultyInfo(inst.difficultyID) or ""
-	list[#list + 1] = { header = L.InstanceLoot:format(inst.name or "?", difficulty), count = inst.count }
+	local difficulty = inst.difficultyID and GetDifficultyInfo(inst.difficultyID)
+	local header = difficulty and difficulty ~= "" and L.InstanceLoot:format(inst.name or "?", difficulty) or (inst.name or "?")
+	list[#list + 1] = { header = header, count = inst.count }
 	for _, boss in ipairs(inst.bosses) do
 		if #boss.items > 0 then
 			list[#list + 1] = { boss = boss.name, killed = boss.killed }
@@ -364,7 +365,7 @@ function ns.Refresh()
 	elseif state then
 		frame.title:SetText(L.Title .. "  |cff8f96a6·|r  " .. (state.zoneName or ""))
 		frame.subtitle:SetText(state.noData and L.NoDataShort or L.Missing:format(state.total))
-		status = state.instanceStatus
+		status = state.instanceStatus or (state.zonePending and "pending")
 	else
 		frame.title:SetText(L.Title)
 		frame.subtitle:SetText(L.Scanning)
@@ -580,7 +581,7 @@ local function DoScan()
 	end
 	ns.BuildIndex(function()
 		ns.state = ns.Scan()
-		local pending = ns.state.instanceStatus == "pending"
+		local pending = ns.state.instanceStatus == "pending" or ns.state.zonePending
 		if browse then
 			local result, status = ns.ScanInstance(browse.id, browse.difficultyID)
 			browse.result = result or browse.result
@@ -596,6 +597,7 @@ local function DoScan()
 		else
 			retries = 0
 			if ns.state.instanceStatus == "pending" then ns.state.instanceStatus = nil end
+			ns.state.zonePending = nil
 			if browse and browse.status == "pending" then browse.status = nil end
 		end
 		ns.UpdatePill()
