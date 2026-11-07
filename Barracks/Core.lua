@@ -1,10 +1,6 @@
 local addonName, ns = ...
 local L = ns.L
 
--- WoW Forever (interface 16001) runs vanilla content on the retail client:
--- no Great Vault, Mythic+, crests or coffer keys to show.
-ns.vanillaContent = select(4, GetBuildInfo()) < 20000
-
 local DEFAULTS = {
 	chars = {},
 	hidden = {},

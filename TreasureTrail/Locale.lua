@@ -4,6 +4,8 @@ local L = {
 	Title = "Treasure Trail",
 	Missing = "%d to collect here",
 	NothingMissing = "You have everything this place offers.",
+	NoData = "This game client gives no sources for mounts or pets and has no Adventure Guide, so there is nothing to check here.",
+	NoDataShort = "No collection data on this client",
 	Scanning = "Reading the collections...",
 	Mounts = "Mounts",
 	Pets = "Pets",
@@ -34,6 +36,8 @@ local locale = GetLocale()
 if locale == "esES" or locale == "esMX" then
 	L.Missing = "Te faltan %d cosas aquí"
 	L.NothingMissing = "Ya tienes todo lo que ofrece este lugar."
+	L.NoData = "Este cliente del juego no da el origen de monturas ni mascotas y no tiene guía de aventuras, así que aquí no hay nada que comprobar."
+	L.NoDataShort = "Sin datos de colecciones en este cliente"
 	L.Scanning = "Leyendo las colecciones..."
 	L.Mounts = "Monturas"
 	L.Pets = "Mascotas"

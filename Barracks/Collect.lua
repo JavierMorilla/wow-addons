@@ -1,5 +1,10 @@
 local _, ns = ...
 
+-- WoW Forever (interface 16001) runs vanilla content on the retail client:
+-- no Great Vault, Mythic+, crests or coffer keys to show. Set here, before
+-- UI.lua, which lays out its columns as it loads.
+ns.vanillaContent = select(4, GetBuildInfo()) < 20000
+
 -- The War Within, Season 3 (11.2.x)
 ns.CRESTS = { 3284, 3286, 3288, 3290 } -- Weathered, Carved, Runed, Gilded Ethereal Crest
 ns.CREST_COLORS = { "ff1eff00", "ff0070dd", "ffa335ee", "ffff8000" }

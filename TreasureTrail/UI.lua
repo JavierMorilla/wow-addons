@@ -363,7 +363,7 @@ function ns.Refresh()
 		status = browse.status
 	elseif state then
 		frame.title:SetText(L.Title .. "  |cff8f96a6·|r  " .. (state.zoneName or ""))
-		frame.subtitle:SetText(L.Missing:format(state.total))
+		frame.subtitle:SetText(state.noData and L.NoDataShort or L.Missing:format(state.total))
 		status = state.instanceStatus
 	else
 		frame.title:SetText(L.Title)
@@ -374,7 +374,7 @@ function ns.Refresh()
 	if status == "busy" then
 		message = L.Busy
 	elseif #list == 0 then
-		message = state and L.NothingMissing or L.Scanning
+		message = not state and L.Scanning or (state.noData and not browse) and L.NoData or L.NothingMissing
 	end
 	frame.empty:SetText(message or "")
 	frame.empty:SetShown(message ~= nil)

@@ -282,6 +282,11 @@ function ns.Scan()
 
 	state.total = #state.mounts + #state.pets + #state.wild + (state.instance and state.instance.count or 0)
 
+	-- WoW Forever's client has no mount or pet source texts and an empty
+	-- Adventure Guide: an empty list there means "unknown", not "all collected".
+	local tiers = EJ_GetNumTiers and EJ_GetNumTiers() or 0
+	state.noData = index.pets ~= nil and #index.mounts == 0 and #index.pets == 0 and tiers == 0
+
 	if not inInstance and state.zoneMapID then
 		local ok, entrances = pcall(C_EncounterJournal.GetDungeonEntrancesForMap, state.zoneMapID)
 		state.entrances = ok and entrances or {}

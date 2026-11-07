@@ -5,6 +5,8 @@ local ROW_H, MAX_ROWS, PAD = 40, 12, 14
 local HEADER_H, COLS_H, FOOTER_H = 60, 24, 34
 local FONT, FONT_NUM = "Fonts\\FRIZQT__.TTF", "Fonts\\ARIALN.TTF"
 local GOLD_ICON = "|TInterface\\MoneyFrame\\UI-GoldIcon:12:12:0:0|t"
+local SILVER_ICON = "|TInterface\\MoneyFrame\\UI-SilverIcon:12:12:0:0|t"
+local COPPER_ICON = "|TInterface\\MoneyFrame\\UI-CopperIcon:12:12:0:0|t"
 
 local C = {
 	bg = { 0.047, 0.051, 0.063, 0.97 },
@@ -63,8 +65,15 @@ end
 
 -- Formatting ------------------------------------------------------------------
 
+-- Whole gold for rich characters; silver and copper still count on new ones
+-- and on WoW Forever, where 9 silver used to read "0 gold".
 local function Money(copper)
-	return BreakUpLargeNumbers(math.floor((copper or 0) / 10000)) .. " " .. GOLD_ICON
+	copper = math.floor(copper or 0)
+	local gold, silver, rest = math.floor(copper / 10000), math.floor(copper / 100) % 100, copper % 100
+	if gold >= 100 then return BreakUpLargeNumbers(gold) .. " " .. GOLD_ICON end
+	if gold > 0 then return format("%d %s %d %s", gold, GOLD_ICON, silver, SILVER_ICON) end
+	if silver > 0 then return format("%d %s %d %s", silver, SILVER_ICON, rest, COPPER_ICON) end
+	return rest .. " " .. COPPER_ICON
 end
 
 local function Duration(sec)
@@ -223,7 +232,11 @@ local function ShowRowTooltip(row)
 		tt:AddDoubleLine(L.Score, ScoreText(rec.score), 0.85, 0.85, 0.85)
 	end
 
-	if rec.currencies then
+	local hasCurrency = false
+	for _, id in ipairs(ns.TRACKED_CURRENCIES) do
+		if rec.currencies and rec.currencies[id] then hasCurrency = true end
+	end
+	if hasCurrency then
 		Section(tt, L.Currencies)
 		for _, id in ipairs(ns.TRACKED_CURRENCIES) do
 			local c = rec.currencies[id]
@@ -551,7 +564,8 @@ function ns.Refresh()
 	local total = 0
 	for _, rec in pairs(ns.db.chars) do total = total + (rec.money or 0) end
 	frame.total:SetText(Money(total + (ns.db.warbandMoney or 0)))
-	frame.warband:SetText(ns.db.warbandMoney and format("%s: %s", L.WarbandBank, Money(ns.db.warbandMoney)) or "")
+	local warband = ns.db.warbandMoney or 0
+	frame.warband:SetText(warband > 0 and format("%s: %s", L.WarbandBank, Money(warband)) or "")
 	frame.count:SetText(format("%s · %s", L.Characters:format(#list), L.ColNameHint))
 	UpdateHeaders()
 	UpdateFooter()
