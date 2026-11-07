@@ -154,7 +154,7 @@ events:SetScript("OnEvent", function(_, event, ...)
 		local name = ...
 		if name == ADDON then
 			local old = MorigollDevTestDB
-			MorigollDevTestDB = { session = session, run = old and old.run }
+			MorigollDevTestDB = { session = session, run = old and old.run, probe = old and old.probe, grid = old and old.grid }
 			return
 		end
 		for _, target in ipairs(TARGETS) do
@@ -681,8 +681,56 @@ local function CheckTrailData(step)
 	probe.petExample = petExample
 	Note(step, "probe", probe)
 
+	-- WoW Forever with our own data: check every entry against the client.
+	if ns.Forever and ns.ForeverData then
+		Expect(step, not s.noData, "Forever data is loaded but state.noData is set")
+		local D = ns.ForeverData
+		local audit = { zoneItems = 0, instanceItems = 0, missingItems = {}, unresolved = {}, uncoveredMounts = {} }
+		local covered = {}
+		audit.uncached = 0
+		local function Check(itemID, kind)
+			if not C_Item.DoesItemExistByID(itemID) then
+				if #audit.missingItems < 100 then audit.missingItems[#audit.missingItems + 1] = itemID end
+				return
+			end
+			if not C_Item.IsItemDataCachedByID(itemID) then
+				audit.uncached = audit.uncached + 1
+				return
+			end
+			local mountID = C_MountJournal.GetMountFromItem(itemID)
+			if mountID and mountID > 0 then covered[mountID] = true end
+			local speciesID = select(13, C_PetJournal.GetPetInfoByItemID(itemID))
+			if (kind == "mount" and not (mountID and mountID > 0)) or (kind == "pet" and not speciesID) then
+				audit.unresolved[#audit.unresolved + 1] = kind .. " " .. itemID
+			end
+		end
+		for _, z in pairs(D.zones) do
+			for itemID, e in pairs(z.items) do
+				audit.zoneItems = audit.zoneItems + 1
+				Check(itemID, e[1])
+			end
+		end
+		for _, inst in pairs(D.instances) do
+			for _, b in ipairs(inst[4]) do
+				for i = 1, #b[2], 2 do
+					audit.instanceItems = audit.instanceItems + 1
+					Check(b[2][i])
+				end
+			end
+		end
+		for _, mountID in ipairs(Safe(C_MountJournal.GetMountIDs) or {}) do
+			if not covered[mountID] then
+				local name, _, _, _, _, _, _, factionSpecific, faction, hide = C_MountJournal.GetMountInfoByID(mountID)
+				audit.uncoveredMounts[#audit.uncoveredMounts + 1] = format("%d %s%s", mountID, Str(name), hide and " (hidden)" or "")
+			end
+		end
+		Note(step, "foreverAudit", audit)
+		Expect(step, #audit.missingItems == 0, #audit.missingItems .. " items of our data do not exist in this client")
+		Expect(step, #audit.unresolved == 0, #audit.unresolved .. " mounts or pets the client does not recognise")
+	end
+
 	-- No source data at all (WoW Forever): the window must not claim everything is collected.
-	if mountSources == 0 and species == 0 and (probe.ejTiers or 0) == 0 then
+	if not ns.Forever and mountSources == 0 and species == 0 and (probe.ejTiers or 0) == 0 then
 		Expect(step, s.noData == true, "client has no collection data but state.noData is " .. Str(s.noData))
 		local f = Window("TreasureTrail")
 		if f and f:IsShown() and ns.L then
@@ -691,6 +739,40 @@ local function CheckTrailData(step)
 			end
 		end
 	end
+end
+
+-- What each collection API says about the first items of one of our instances.
+local function TrailItemDiag(instanceID)
+	local ns = nsOf.TreasureTrail
+	local inst = ns and ns.ForeverData and ns.ForeverData.instances[instanceID]
+	if not inst then return nil end
+	local out = {}
+	for _, b in ipairs(inst[4]) do
+		for i = 1, #b[2], 2 do
+			if #out >= 12 then return out end
+			local itemID = b[2][i]
+			local _, link, quality, _, _, _, _, _, equipLoc = C_Item.GetItemInfo(itemID)
+			local parts = { tostring(itemID), Str(equipLoc), "cached=" .. Str(C_Item.IsItemDataCachedByID(itemID)) }
+			parts[#parts + 1] = "mount=" .. Str(C_MountJournal.GetMountFromItem(itemID))
+			parts[#parts + 1] = "pet13=" .. Str((select(13, C_PetJournal.GetPetInfoByItemID(itemID))))
+			parts[#parts + 1] = "toy=" .. Str((C_ToyBox.GetToyInfo(itemID)))
+			if link then
+				local appearanceID, sourceID = C_TransmogCollection.GetItemInfo(link)
+				parts[#parts + 1] = "appearance=" .. Str(appearanceID) .. "/" .. Str(sourceID)
+				if sourceID then
+					local info = C_TransmogCollection.GetAppearanceInfoBySource(sourceID)
+					parts[#parts + 1] = "collected=" .. Str(info and info.appearanceIsCollected)
+					local hasData, canCollect = C_TransmogCollection.PlayerCanCollectSource(sourceID)
+					parts[#parts + 1] = "canCollect=" .. Str(hasData) .. "/" .. Str(canCollect)
+					if ns.Forever and ns.Forever.CanCollect then parts[#parts + 1] = "ours=" .. Str(ns.Forever.CanCollect(itemID)) end
+				end
+				local ok, kind = pcall(ns.Collectible, itemID, link)
+				parts[#parts + 1] = "Collectible=" .. (ok and Str(kind) or ("error " .. Str(kind)))
+			end
+			out[#out + 1] = table.concat(parts, " ")
+		end
+	end
+	return out
 end
 
 local function IsEntrance(row)
@@ -714,10 +796,12 @@ local function TrailSteps()
 		if entrance then
 			more[#more + 1] = Step(addon, "browse first dungeon entrance", function(step)
 				Note(step, "entrance", Str(RowData(entrance).entrance.name))
+				step.instanceID = RowData(entrance).entrance.journalInstanceID
 				entrance:Click("LeftButton")
 			end, {
 				wait = 4, shot = true, texts = true,
 				after = function(step)
+					Note(step, "itemDiag", TrailItemDiag(step.instanceID))
 					Expect(step, root.back and root.back:IsShown(), "back button not shown in browse mode")
 					local browse = RowSteps(addon, root, IsItem, 3)
 					for _, s in ipairs(ControlSteps(addon, root, nil, 3)) do
@@ -860,6 +944,18 @@ local function Start(only)
 	end
 	run.shotsLeft[""] = 0
 	MorigollDevTestDB.run = run
+	-- Our Forever data: have the client load every item while the other addons are tested.
+	local D = nsOf.TreasureTrail and nsOf.TreasureTrail.ForeverData
+	if D then
+		for _, z in pairs(D.zones) do
+			for itemID in pairs(z.items) do Safe(C_Item.RequestLoadItemDataByID, itemID) end
+		end
+		for _, inst in pairs(D.instances) do
+			for _, b in ipairs(inst[4]) do
+				for i = 1, #b[2], 2 do Safe(C_Item.RequestLoadItemDataByID, b[2][i]) end
+			end
+		end
+	end
 	RunNext()
 end
 
@@ -987,6 +1083,26 @@ local function BuildProbe()
 	probe.zones = Children(Enum.UIMapType.Zone)
 	probe.dungeons = Children(Enum.UIMapType.Dungeon)
 	probe.instanceNow = { Safe(GetInstanceInfo) }
+
+	-- Each zone's rectangle in world coordinates: maps creature spawns to zones.
+	probe.zoneRects = {}
+	for _, mapType in ipairs({ Enum.UIMapType.Continent, Enum.UIMapType.Zone }) do
+		for _, info in ipairs(Safe(C_Map.GetMapChildrenInfo, 947, mapType, true) or {}) do
+			local c1, p1 = Safe(C_Map.GetWorldPosFromMapPos, info.mapID, CreateVector2D(0, 0))
+			local c2, p2 = Safe(C_Map.GetWorldPosFromMapPos, info.mapID, CreateVector2D(1, 1))
+			if p1 and p2 then
+				probe.zoneRects[#probe.zoneRects + 1] = format("%d|%d|%s|%s|%s|%s|%s|%d|%d", info.mapID, info.mapType,
+					Str(c1), Str(p1.x), Str(p1.y), Str(p2.x), Str(p2.y), info.parentMapID or 0, c2 or -1) .. "|" .. Str(info.name)
+			end
+		end
+	end
+
+	-- Instance names by instance map id (what GetInstanceInfo returns inside).
+	probe.instanceNames = {}
+	for id = 1, 1000 do
+		local name = Safe(GetRealZoneText, id)
+		if name and name ~= "" then probe.instanceNames[#probe.instanceNames + 1] = id .. "|" .. name end
+	end
 	return probe
 end
 
@@ -1005,6 +1121,53 @@ local function Probe()
 	end)
 end
 
+-- Zone grid (/devtest grid) --------------------------------------------------------------
+-- Which zone covers each point of the two continent maps, read from the world
+-- map's own zone shapes. Rows are run-length encoded: "zone*count,zone*count".
+-- One row per frame, so the game does not freeze.
+
+local GRID_SIZE = 400
+local GRID_CONTINENTS = { 1414, 1415 } -- Kalimdor, Eastern Kingdoms
+
+local function Grid()
+	if current then return end
+	local grid = { size = GRID_SIZE, at = date("%Y-%m-%d %H:%M:%S"), maps = {} }
+	local c, row = 1, 0
+	local rows = {}
+	local ticker
+	ticker = C_Timer.NewTicker(0, function()
+		local mapID = GRID_CONTINENTS[c]
+		local parts, last, count = {}, nil, 0
+		local y = (row + 0.5) / GRID_SIZE
+		for col = 0, GRID_SIZE - 1 do
+			local info = Safe(C_Map.GetMapInfoAtPosition, mapID, (col + 0.5) / GRID_SIZE, y)
+			local id = info and info.mapID or 0
+			if id == last then
+				count = count + 1
+			else
+				if last then parts[#parts + 1] = last .. "*" .. count end
+				last, count = id, 1
+			end
+		end
+		parts[#parts + 1] = last .. "*" .. count
+		rows[#rows + 1] = table.concat(parts, ",")
+		row = row + 1
+		if row % 20 == 0 then Banner(format("DevTest · cuadrícula de zonas %d/%d · fila %d/%d", c, #GRID_CONTINENTS, row, GRID_SIZE), 1, 0.85, 0.95) end
+		if row >= GRID_SIZE then
+			grid.maps[mapID] = rows
+			rows, row, c = {}, 0, c + 1
+			if c > #GRID_CONTINENTS then
+				ticker:Cancel()
+				MorigollDevTestDB.grid = grid
+				local text = "Cuadrícula hecha. Haz /reload para guardarla."
+				Banner(text, 0.45, 0.9, 0.6)
+				print("|cffff5ec4DevTest|r " .. text)
+				C_Timer.After(20, function() if not current then banner:Hide() end end)
+			end
+		end
+	end)
+end
+
 SLASH_MORIGOLLDEVTEST1 = "/devtest"
 SlashCmdList.MORIGOLLDEVTEST = function(msg)
 	msg = strtrim(msg or ""):lower()
@@ -1014,6 +1177,8 @@ SlashCmdList.MORIGOLLDEVTEST = function(msg)
 			geterrorhandler() == handler and "installed" or "NOT installed"))
 	elseif msg == "probe" or msg == "sonda" then
 		Probe()
+	elseif msg == "grid" then
+		Grid()
 	elseif msg == "stop" then
 		if current then Complete("parado a mano") end
 	else
