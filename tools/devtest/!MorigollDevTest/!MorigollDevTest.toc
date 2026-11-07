@@ -1,0 +1,8 @@
+## Interface: 110205, 110207, 120105, 120107, 16001
+## Title: |cffff5ec4Morigoll DevTest|r
+## Notes: Development only, never shipped. Records Lua errors and runs /devtest over Barracks, Keepsake and Treasure Trail.
+## Author: Morigoll
+## Version: dev
+## SavedVariables: MorigollDevTestDB
+
+DevTest.lua

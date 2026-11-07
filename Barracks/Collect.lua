@@ -19,7 +19,9 @@ local REST_CAP = 1.5     -- rested pool caps at one and a half levels
 
 local function Try(label, fn, ...)
 	local ok, err = pcall(fn, ...)
-	if not ok and ns.debug then
+	if ok then return end
+	if ns.onError then ns.onError(label, err) end -- set by a test harness, if any
+	if ns.debug then
 		print("|cff66ccffBarracks|r", label, err)
 	end
 end

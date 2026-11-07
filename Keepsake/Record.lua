@@ -280,7 +280,9 @@ f:SetScript("OnEvent", function(_, event, ...)
 	end
 	if not ns.db then return end
 	local ok, err = pcall(handlers[event], ...)
-	if not ok and ns.debug then print("|cffffc259Keepsake|r", event, err) end
+	if ok then return end
+	if ns.onError then ns.onError(event, err) end -- set by a test harness, if any
+	if ns.debug then print("|cffffc259Keepsake|r", event, err) end
 end)
 
 SLASH_KEEPSAKE1 = "/keepsake"

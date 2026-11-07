@@ -1,0 +1,876 @@
+-- Morigoll DevTest: a development-only harness, never shipped.
+--
+-- Loads before the other addons (the "!" in the folder name) and records every
+-- Lua error, blocked action and Lua warning of the session. /devtest then opens
+-- Barracks, Keepsake and Treasure Trail, clicks and hovers their controls,
+-- checks their data against the game, takes a screenshot of the key steps and
+-- keeps a report in MorigollDevTestDB. /reload writes the report to disk, where
+-- tools/devtest/report.mjs reads it.
+
+local ADDON = ...
+local TARGETS = { "Barracks", "Keepsake", "TreasureTrail" }
+local FRAMES = { Barracks = "BarracksFrame", Keepsake = "KeepsakeFrame", TreasureTrail = "TreasureTrailFrame" }
+local SLASH = { Barracks = "BARRACKS", Keepsake = "KEEPSAKE", TreasureTrail = "TREASURETRAIL" }
+local SHOTS_PER_ADDON = 14
+local MAX_LIST = 200
+
+local t0 = debugprofilestop()
+local function Now() return floor(debugprofilestop() - t0) / 1000 end
+
+local session = { errors = {}, caught = {}, blocked = {}, warnings = {}, loaded = {}, startedAt = date("%Y-%m-%d %H:%M:%S") }
+local nsOf = {}
+local run, current
+local queue = {}
+
+-- Helpers ------------------------------------------------------------------------------
+
+local function Str(v)
+	if issecretvalue and issecretvalue(v) then return "<secret>" end
+	local ok, s = pcall(tostring, v)
+	return ok and s or "<?>"
+end
+
+local function Safe(fn, ...)
+	local ok, a, b, c, d = pcall(fn, ...)
+	if ok then return a, b, c, d end
+	return nil
+end
+
+local function AddonFromText(s)
+	for _, name in ipairs(TARGETS) do
+		if s:find("AddOns[/\\]" .. name .. "[/\\]") then return name end
+	end
+	return s:match("AddOns[/\\]([^/\\]+)[/\\]") or "?"
+end
+
+local function Total(list)
+	local n = 0
+	for _, e in ipairs(list) do n = n + e.count end
+	return n
+end
+
+local function Record(list, entry)
+	for _, e in ipairs(list) do
+		if e.msg == entry.msg then
+			e.count = e.count + 1
+			return
+		end
+	end
+	if #list >= MAX_LIST then return end
+	entry.count = 1
+	entry.at = Now()
+	entry.step = current and current.label
+	list[#list + 1] = entry
+end
+
+-- Error capture ------------------------------------------------------------------------
+
+local handler, previous
+local busy = false
+handler = function(msg, ...)
+	if not busy then
+		busy = true
+		pcall(function()
+			local text = Str(msg)
+			Record(session.errors, { msg = text, addon = AddonFromText(text), stack = debugstack(3, 12, 0) })
+		end)
+		busy = false
+	end
+	if previous then return previous(msg, ...) end
+end
+
+local function InstallHandler()
+	local ok = pcall(function()
+		local h = geterrorhandler()
+		if h ~= handler then
+			previous = h
+			seterrorhandler(handler)
+		end
+	end)
+	session.handlerInstalled = ok and geterrorhandler() == handler
+end
+InstallHandler()
+-- Blizzard's error frame sets its own handler when it loads; keep ours in front.
+pcall(hooksecurefunc, "seterrorhandler", function(h)
+	if h ~= handler then
+		previous = h
+		seterrorhandler(handler)
+	end
+end)
+
+-- Environment ------------------------------------------------------------------------
+
+local function Env()
+	local version, build, buildDate, toc = GetBuildInfo()
+	local inInstance, instanceType = IsInInstance()
+	local w, h = Safe(GetPhysicalScreenSize)
+	return {
+		version = version, build = build, buildDate = buildDate, toc = toc,
+		locale = GetLocale(),
+		realm = Safe(GetRealmName),
+		char = Safe(UnitName, "player"),
+		level = Safe(UnitLevel, "player"),
+		class = select(2, UnitClass("player")),
+		zone = Safe(GetRealZoneText),
+		subzone = Safe(GetSubZoneText),
+		mapID = Safe(C_Map.GetBestMapForUnit, "player"),
+		inInstance = inInstance, instanceType = instanceType,
+		screen = w and (w .. "x" .. h),
+		uiScale = Safe(function() return UIParent:GetEffectiveScale() end),
+		time = date("%Y-%m-%d %H:%M:%S"),
+	}
+end
+
+local function AddonStatus(name)
+	local s = {}
+	s.loaded = Safe(C_AddOns.IsAddOnLoaded, name)
+	local _, title, _, loadable, reason = Safe(C_AddOns.GetAddOnInfo, name)
+	s.loadable, s.reason = loadable, reason
+	s.version = Safe(C_AddOns.GetAddOnMetadata, name, "Version")
+	s.interface = Safe(C_AddOns.GetAddOnInterfaceVersion, name)
+	s.loadError = Safe(C_AddOns.DoesAddOnHaveLoadError, name)
+	s.localTable = nsOf[name] ~= nil
+	if UpdateAddOnMemoryUsage and GetAddOnMemoryUsage then
+		Safe(UpdateAddOnMemoryUsage)
+		s.memoryKB = Safe(GetAddOnMemoryUsage, name)
+	end
+	return s
+end
+
+-- Events -----------------------------------------------------------------------------
+
+local events = CreateFrame("Frame")
+local function Listen(event) pcall(events.RegisterEvent, events, event) end
+Listen("ADDON_LOADED")
+Listen("PLAYER_LOGIN")
+Listen("ADDON_ACTION_BLOCKED")
+Listen("ADDON_ACTION_FORBIDDEN")
+Listen("LUA_WARNING")
+
+events:SetScript("OnEvent", function(_, event, ...)
+	if event == "ADDON_LOADED" then
+		local name = ...
+		if name == ADDON then
+			local old = MorigollDevTestDB
+			MorigollDevTestDB = { session = session, run = old and old.run }
+			return
+		end
+		for _, target in ipairs(TARGETS) do
+			if name == target then
+				session.loaded[name] = Now()
+				-- Opt-in through AllowAddOnTableAccess in the addon's toc.
+				local ns = Safe(C_AddOns.GetAddOnLocalTable, name)
+				if type(ns) == "table" then
+					nsOf[name] = ns
+					ns.onError = function(where, err)
+						Record(session.caught, { msg = Str(err), addon = name, where = Str(where) })
+					end
+				end
+			end
+		end
+	elseif event == "PLAYER_LOGIN" then
+		InstallHandler()
+		session.env = Env()
+		session.addons = {}
+		for _, name in ipairs(TARGETS) do session.addons[name] = AddonStatus(name) end
+	elseif event == "ADDON_ACTION_BLOCKED" or event == "ADDON_ACTION_FORBIDDEN" then
+		local addon, func = ...
+		Record(session.blocked, { msg = event .. ": " .. Str(addon) .. " -> " .. Str(func), addon = Str(addon), stack = debugstack(2, 8, 0) })
+	elseif event == "LUA_WARNING" then
+		local parts = {}
+		for i = 1, select("#", ...) do parts[#parts + 1] = Str((select(i, ...))) end
+		local text = table.concat(parts, " | ")
+		Record(session.warnings, { msg = text, addon = AddonFromText(text) })
+	end
+end)
+
+-- Banner ----------------------------------------------------------------------------
+
+local banner = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
+banner:SetFrameStrata("TOOLTIP")
+banner:SetSize(640, 30)
+banner:SetPoint("TOP", 0, -8)
+banner:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
+banner:SetBackdropColor(0.05, 0.05, 0.07, 0.92)
+banner:SetBackdropBorderColor(1, 0.37, 0.77, 1)
+banner.text = banner:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+banner.text:SetPoint("CENTER")
+banner:Hide()
+
+local function Banner(text, r, g, b)
+	banner.text:SetText(text)
+	banner.text:SetTextColor(r or 1, g or 1, b or 1)
+	banner:SetWidth(math.max(320, banner.text:GetUnboundedStringWidth() + 40))
+	banner:Show()
+end
+
+-- Frame inspection --------------------------------------------------------------------
+
+local function IsScrollPart(f)
+	return f.ScrollTarget ~= nil or f.Track ~= nil
+end
+
+local function Label(c)
+	local fs = c.text or c.label or (c.GetFontString and c:GetFontString())
+	local t = fs and fs.GetText and fs:GetText()
+	if not t or t == "" then
+		for _, r in ipairs({ c:GetRegions() }) do
+			if r:GetObjectType() == "FontString" and r:GetText() and r:GetText() ~= "" then
+				t = r:GetText()
+				break
+			end
+		end
+	end
+	t = t and Str(t):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") or nil
+	return (c:GetObjectType() == "CheckButton" and "[check] " or "") .. (t or ("<" .. (c:GetDebugName() or "?") .. ">"))
+end
+
+local function Texts(frame, out)
+	out = out or {}
+	for _, r in ipairs({ frame:GetRegions() }) do
+		if #out >= 150 then return out end
+		if r:GetObjectType() == "FontString" and r:IsVisible() then
+			local t = r:GetText()
+			if t ~= nil then
+				t = Str(t)
+				if t ~= "" then out[#out + 1] = t end
+			end
+		end
+	end
+	for _, c in ipairs({ frame:GetChildren() }) do
+		if c:IsVisible() then Texts(c, out) end
+	end
+	return out
+end
+
+-- Text that suggests a formatting or data bug.
+local BAD = { "%f[%a]nil%f[%A]", "%%[sdfi]", "%f[%a]NaN%f[%A]", "%f[%a]inf%f[%A]", "<secret>", "ERROR", "%?%?" }
+local function BadTexts(texts)
+	local bad = {}
+	for _, t in ipairs(texts) do
+		for _, p in ipairs(BAD) do
+			if t:find(p) then
+				bad[#bad + 1] = t
+				break
+			end
+		end
+	end
+	return bad
+end
+
+local function Controls(root, skip)
+	local list = {}
+	local function Walk(f)
+		for _, c in ipairs({ f:GetChildren() }) do
+			if not IsScrollPart(c) and not (skip and skip[c]) then
+				local kind = c:GetObjectType()
+				if (kind == "Button" or kind == "CheckButton") and c:IsVisible() and c:GetScript("OnClick") then
+					list[#list + 1] = c
+				end
+				Walk(c)
+			end
+		end
+	end
+	Walk(root)
+	return list
+end
+
+local function EditBoxes(root)
+	local list = {}
+	local function Walk(f)
+		for _, c in ipairs({ f:GetChildren() }) do
+			if c:GetObjectType() == "EditBox" and c:IsVisible() then list[#list + 1] = c end
+			if not IsScrollPart(c) then Walk(c) end
+		end
+	end
+	Walk(root)
+	return list
+end
+
+local function Rows(root, predicate, max)
+	local list = {}
+	local box = root.scrollBox
+	if not box or not box.GetFrames then return list end
+	local frames = {}
+	for _, row in ipairs(box:GetFrames() or {}) do frames[#frames + 1] = row end
+	table.sort(frames, function(a, b) return (a:GetTop() or 0) > (b:GetTop() or 0) end)
+	for _, row in ipairs(frames) do
+		if row:IsVisible() and (not predicate or predicate(row)) then
+			list[#list + 1] = row
+			if #list >= (max or 6) then break end
+		end
+	end
+	return list
+end
+
+local function RowData(row)
+	return row.data or row.rec or (row.GetElementData and Safe(row.GetElementData, row))
+end
+
+local function TooltipLines(owner)
+	if not GameTooltip:IsVisible() then return nil end
+	if owner and GameTooltip:GetOwner() ~= owner then return nil end
+	local out = {}
+	for i = 1, math.min(GameTooltip:NumLines() or 0, 30) do
+		local l, r = _G["GameTooltipTextLeft" .. i], _G["GameTooltipTextRight" .. i]
+		local lt = l and l:GetText()
+		local rt = r and r:IsShown() and r:GetText()
+		if lt or rt then
+			out[#out + 1] = Str(lt or "") .. (rt and ("  ||  " .. Str(rt)) or "")
+		end
+	end
+	return out
+end
+
+local function OnScreen(frame)
+	local l, b, w, h = frame:GetRect()
+	if not l then return false end
+	local s, us = frame:GetEffectiveScale(), UIParent:GetEffectiveScale()
+	local W, H = UIParent:GetWidth() * us, UIParent:GetHeight() * us
+	return l * s >= -1 and b * s >= -1 and (l + w) * s <= W + 1 and (b + h) * s <= H + 1
+end
+
+local function Hover(frame, step)
+	if step then step.hovered = frame end
+	local enter = frame:GetScript("OnEnter")
+	if enter then enter(frame) end
+end
+
+local function Unhover(frame)
+	local leave = frame:GetScript("OnLeave")
+	if leave then leave(frame) end
+	GameTooltip:Hide()
+end
+
+-- Steps -------------------------------------------------------------------------------
+
+local function Expect(step, cond, what)
+	step.checks = (step.checks or 0) + 1
+	if not cond then
+		step.fails = step.fails or {}
+		step.fails[#step.fails + 1] = what
+	end
+	return cond
+end
+
+local function Note(step, key, value)
+	step.data = step.data or {}
+	step.data[key] = value
+end
+
+local function Step(addon, label, fn, opts)
+	opts = opts or {}
+	return { addon = addon, label = label, fn = fn, after = opts.after, wait = opts.wait or 0.6, shot = opts.shot, tooltip = opts.tooltip, texts = opts.texts }
+end
+
+local function Push(steps)
+	for i = #steps, 1, -1 do table.insert(queue, 1, steps[i]) end
+end
+
+local function Window(addon) return _G[FRAMES[addon]] end
+
+local function Open(addon)
+	local f = Window(addon)
+	if not (f and f:IsShown()) then SlashCmdList[SLASH[addon]]("") end
+	return Window(addon)
+end
+
+local function Close(addon)
+	local f = Window(addon)
+	if f and f:IsShown() then f:Hide() end
+end
+
+-- Remember the settings a click may change (sort, filters, checkboxes) and put them back.
+local function SnapshotDB(addon)
+	local ns = nsOf[addon]
+	if not (ns and ns.db) then return end
+	local snap = {}
+	for k, v in pairs(ns.db) do
+		if type(v) ~= "table" then snap[k] = v end
+	end
+	run.snapshots[addon] = snap
+end
+
+local function RestoreDB(addon)
+	local ns, snap = nsOf[addon], run.snapshots[addon]
+	if not (ns and ns.db and snap) then return end
+	for k, v in pairs(ns.db) do
+		local t = type(v)
+		if (t == "string" or t == "number" or t == "boolean") and snap[k] == nil then ns.db[k] = nil end
+	end
+	for k, v in pairs(snap) do ns.db[k] = v end
+	if ns.Refresh then pcall(ns.Refresh) end
+	if ns.UpdatePill then pcall(ns.UpdatePill) end
+end
+
+-- The click, hover and screenshot steps for every control in a window.
+local function ControlSteps(addon, root, skip, waitAfterClick)
+	local steps = {}
+	for _, c in ipairs(Controls(root, skip)) do
+		local label = Label(c)
+		if c:GetScript("OnEnter") then
+			steps[#steps + 1] = Step(addon, "hover " .. label, function(step) Hover(c, step) end, {
+				wait = 0.4, tooltip = true,
+				after = function() Unhover(c) end,
+			})
+		end
+		if c:GetObjectType() == "CheckButton" then
+			steps[#steps + 1] = Step(addon, "toggle " .. label, function(step)
+				local before = c:GetChecked()
+				c:Click()
+				Expect(step, c:GetChecked() ~= before, "checkbox did not change")
+				c:Click()
+				Expect(step, c:GetChecked() == before, "checkbox did not go back")
+			end, { wait = 0.5 })
+		else
+			steps[#steps + 1] = Step(addon, "click " .. label, function() c:Click("LeftButton") end, {
+				wait = waitAfterClick or 0.6, shot = true, texts = true,
+				after = function(step)
+					if not root:IsShown() then
+						Note(step, "closedWindow", true)
+						Open(addon)
+					end
+				end,
+			})
+		end
+	end
+	return steps
+end
+
+local function RowSteps(addon, root, predicate, max)
+	local steps = {}
+	for i, row in ipairs(Rows(root, predicate, max)) do
+		steps[#steps + 1] = Step(addon, "hover row " .. i, function(step)
+			local d = RowData(row)
+			if type(d) == "table" then
+				local summary = {}
+				for k, v in pairs(d) do
+					if type(v) ~= "table" and type(v) ~= "function" then summary[k] = Str(v) end
+				end
+				Note(step, "row", summary)
+			end
+			Hover(row, step)
+		end, { wait = 0.5, tooltip = true, shot = i == 1, after = function() Unhover(row) end })
+	end
+	return steps
+end
+
+local function OpenStep(addon, wait, check)
+	return Step(addon, "open with /" .. SLASH[addon]:lower(), function(step)
+		SnapshotDB(addon)
+		Close(addon)
+		Open(addon)
+	end, {
+		wait = wait or 1, shot = true, texts = true,
+		after = function(step)
+			local f = Window(addon)
+			if Expect(step, f and f:IsShown(), "window did not open") then
+				Expect(step, OnScreen(f), "window is partly off screen")
+				if f.scrollBox and f.scrollBox.GetDataProviderSize then
+					Note(step, "listRows", Safe(f.scrollBox.GetDataProviderSize, f.scrollBox))
+				end
+			end
+			if check then check(step) end
+		end,
+	})
+end
+
+local function CloseStep(addon)
+	return Step(addon, "close and restore settings", function(step)
+		RestoreDB(addon)
+		Close(addon)
+	end, {
+		wait = 0.5,
+		after = function(step)
+			local f = Window(addon)
+			Expect(step, not (f and f:IsShown()), "window did not close")
+		end,
+	})
+end
+
+-- Barracks --------------------------------------------------------------------------------
+
+local function CheckBarracksData(step)
+	local ns = nsOf.Barracks
+	if not Expect(step, ns and ns.db, "no access to Barracks' addon table") then return end
+	local rec = ns.db.chars[UnitGUID("player")]
+	if not Expect(step, rec, "no record for the current character") then return end
+	Expect(step, rec.name == UnitName("player"), "name differs")
+	Expect(step, rec.level == UnitLevel("player"), "level differs: " .. Str(rec.level) .. " vs " .. UnitLevel("player"))
+	Expect(step, rec.money == GetMoney(), "money differs: " .. Str(rec.money) .. " vs " .. GetMoney())
+	Expect(step, rec.class == select(2, UnitClass("player")), "class differs")
+	local toc = select(4, GetBuildInfo())
+	Expect(step, ns.vanillaContent == (toc < 20000), "vanillaContent is " .. Str(ns.vanillaContent) .. " on toc " .. toc)
+	local chars = 0
+	for _ in pairs(ns.db.chars) do chars = chars + 1 end
+	local snapshot = {}
+	for k, v in pairs(rec) do
+		if type(v) ~= "table" then snapshot[k] = v end
+	end
+	snapshot.professions = rec.professions and #rec.professions
+	Note(step, "characters", chars)
+	Note(step, "record", snapshot)
+
+	local f = Window("Barracks")
+	if not (f and f:IsShown()) then return end
+	if ns.vanillaContent and ns.L then
+		local shown = {}
+		for _, t in ipairs(Texts(f)) do shown[t] = true end
+		for _, key in ipairs({ "Vault", "Keystone", "Crests", "Keys" }) do
+			local label = ns.L[key]
+			Expect(step, not (label and shown[label]), "column for modern content shown on vanilla content: " .. Str(label))
+		end
+	end
+	for _, row in ipairs(Rows(f, nil, 12)) do
+		if row.rec and row.rec.guid == rec.guid and row.gold then
+			local text = Str(row.gold:GetText())
+			Note(step, "goldText", text)
+			Expect(step, (rec.money or 0) == 0 or not text:find("^0 "), "money shows 0 for " .. Str(rec.money) .. " copper: " .. text)
+		end
+	end
+end
+
+local function BarracksSteps()
+	local addon = "Barracks"
+	local steps = { OpenStep(addon, 1.2, CheckBarracksData) }
+	steps[#steps + 1] = Step(addon, "build control steps", function()
+		local root = Window(addon)
+		local more = ControlSteps(addon, root)
+		for _, s in ipairs(RowSteps(addon, root, nil, 3)) do more[#more + 1] = s end
+		local first = Rows(root, nil, 1)[1]
+		if first then
+			more[#more + 1] = Step(addon, "right-click menu on first row", function() first:Click("RightButton") end, {
+				wait = 0.6, shot = true,
+				after = function(step)
+					local manager = Menu and Menu.GetManager and Menu.GetManager()
+					local menu = manager and manager.GetOpenMenu and manager:GetOpenMenu()
+					Expect(step, menu ~= nil, "no context menu opened")
+					if manager then manager:CloseMenus() end
+				end,
+			})
+		end
+		local mm = BarracksMinimapButton
+		if mm and mm:IsVisible() then
+			more[#more + 1] = Step(addon, "hover minimap button", function(step) Hover(mm, step) end, { wait = 0.4, tooltip = true, shot = true, after = function() Unhover(mm) end })
+			more[#more + 1] = Step(addon, "minimap button closes the window", function()
+				mm:GetScript("OnClick")(mm, "LeftButton")
+			end, { wait = 0.4, after = function(step) Expect(step, not root:IsShown(), "window still open") end })
+			more[#more + 1] = Step(addon, "minimap button opens the window", function()
+				mm:GetScript("OnClick")(mm, "LeftButton")
+			end, { wait = 0.6, after = function(step) Expect(step, root:IsShown(), "window did not open") end })
+		end
+		more[#more + 1] = Step(addon, "/alts scan", function() SlashCmdList.BARRACKS("scan") end, { wait = 1.5, after = CheckBarracksData })
+		more[#more + 1] = CloseStep(addon)
+		Push(more)
+	end, { wait = 0 })
+	return steps
+end
+
+-- Keepsake --------------------------------------------------------------------------------
+
+local function CheckKeepsakeData(step)
+	local ns = nsOf.Keepsake
+	if not Expect(step, ns and ns.db, "no access to Keepsake's addon table") then return end
+	local c = ns.db.chars and ns.db.chars[UnitGUID("player")]
+	if not Expect(step, c, "no journal for the current character") then return end
+	Expect(step, type(c.entries) == "table" and #c.entries > 0, "journal has no entries")
+	Expect(step, c.level == UnitLevel("player"), "level differs: " .. Str(c.level))
+	local last = {}
+	for i = math.max(1, #c.entries - 4), #c.entries do
+		local e, flat = c.entries[i], {}
+		for k, v in pairs(e) do
+			if type(v) ~= "table" then flat[k] = v end
+		end
+		last[#last + 1] = flat
+	end
+	Note(step, "entries", #c.entries)
+	Note(step, "lastEntries", last)
+end
+
+local function KeepsakeSteps()
+	local addon = "Keepsake"
+	local steps = { OpenStep(addon, 1, CheckKeepsakeData) }
+	steps[#steps + 1] = Step(addon, "build control steps", function()
+		local root = Window(addon)
+		-- Importing achievements writes to the journal; leave it alone.
+		local more = ControlSteps(addon, root, { [root.import or false] = true })
+		for _, box in ipairs(EditBoxes(root)) do
+			more[#more + 1] = Step(addon, "search 'a'", function() box:SetText("a") end, { wait = 0.6, shot = true, texts = true })
+			more[#more + 1] = Step(addon, "clear search", function()
+				box:SetText("")
+				box:ClearFocus()
+			end, { wait = 0.4 })
+		end
+		for _, s in ipairs(RowSteps(addon, root, function(row)
+			local d = RowData(row)
+			return type(d) == "table" and not d.day
+		end, 4)) do
+			more[#more + 1] = s
+		end
+		more[#more + 1] = CloseStep(addon)
+		Push(more)
+	end, { wait = 0 })
+	return steps
+end
+
+-- Treasure Trail ----------------------------------------------------------------------------
+
+local function CheckTrailData(step)
+	local ns = nsOf.TreasureTrail
+	if not Expect(step, ns, "no access to Treasure Trail's addon table") then return end
+	local s = ns.state
+	if not Expect(step, s, "no scan result") then return end
+	Note(step, "state", {
+		zoneName = s.zoneName, zoneMapID = s.zoneMapID, total = s.total,
+		mounts = s.mounts and #s.mounts, pets = s.pets and #s.pets, wild = s.wild and #s.wild,
+		entrances = s.entrances and #s.entrances,
+		instance = s.instance and s.instance.name, instanceStatus = s.instanceStatus,
+		playerMapID = Safe(C_Map.GetBestMapForUnit, "player"),
+	})
+
+	local probe = { maps = {} }
+	local id = Safe(C_Map.GetBestMapForUnit, "player")
+	for _ = 1, 5 do
+		if not id or id == 0 then break end
+		local info = Safe(C_Map.GetMapInfo, id)
+		local ok, res = pcall(C_EncounterJournal.GetDungeonEntrancesForMap, id)
+		local text
+		if not ok then
+			text = "error " .. Str(res)
+		elseif type(res) == "table" then
+			local names = {}
+			for i = 1, math.min(#res, 4) do names[i] = Str(res[i].name) end
+			text = #res .. " entrances " .. table.concat(names, ", ")
+		else
+			text = Str(res)
+		end
+		probe.maps[#probe.maps + 1] = format("%d %s (type %s): %s", id, info and Str(info.name) or "?", info and Str(info.mapType) or "?", text)
+		id = info and info.parentMapID
+	end
+	probe.ejTiers = EJ_GetNumTiers and Safe(EJ_GetNumTiers)
+	probe.ejCurrentTier = EJ_GetCurrentTier and Safe(EJ_GetCurrentTier)
+
+	local zone = s.zoneName or ""
+	local mountIDs = Safe(C_MountJournal.GetMountIDs) or {}
+	local mountsHere, mountSources = 0, 0
+	for _, mid in ipairs(mountIDs) do
+		local _, _, source = Safe(C_MountJournal.GetMountInfoExtraByID, mid)
+		if source and source ~= "" then
+			mountSources = mountSources + 1
+			if zone ~= "" and source:find(zone, 1, true) then mountsHere = mountsHere + 1 end
+		end
+	end
+	local species, petsHere, petExample = 0, 0, nil
+	for sid = 1, 6000 do
+		local name, _, _, _, source, _, _, _, _, _, obtainable = Safe(C_PetJournal.GetPetInfoBySpeciesID, sid)
+		if name and obtainable and source and source ~= "" then
+			species = species + 1
+			if zone ~= "" and source:find(zone, 1, true) then
+				petsHere = petsHere + 1
+				petExample = petExample or name
+			end
+		end
+	end
+	probe.mountsInJournal = #mountIDs
+	probe.mountsWithSource = mountSources
+	probe.mountSourcesNamingZone = mountsHere
+	probe.petSpeciesObtainable = species
+	probe.petSourcesNamingZone = petsHere
+	probe.petExample = petExample
+	Note(step, "probe", probe)
+
+	-- No source data at all (WoW Forever): the window must not claim everything is collected.
+	if mountSources == 0 and species == 0 and (probe.ejTiers or 0) == 0 then
+		Expect(step, s.noData == true, "client has no collection data but state.noData is " .. Str(s.noData))
+		local f = Window("TreasureTrail")
+		if f and f:IsShown() and ns.L then
+			for _, t in ipairs(Texts(f)) do
+				Expect(step, t ~= ns.L.NothingMissing, "claims everything is collected without data")
+			end
+		end
+	end
+end
+
+local function IsEntrance(row)
+	local d = RowData(row)
+	return type(d) == "table" and d.entrance ~= nil
+end
+
+local function IsItem(row)
+	local d = RowData(row)
+	return type(d) == "table" and (d.item ~= nil or d.entrance ~= nil)
+end
+
+local function TrailSteps()
+	local addon = "TreasureTrail"
+	local steps = { OpenStep(addon, 4, CheckTrailData) }
+	steps[#steps + 1] = Step(addon, "build control steps", function()
+		local root = Window(addon)
+		local more = ControlSteps(addon, root)
+		for _, s in ipairs(RowSteps(addon, root, IsItem, 4)) do more[#more + 1] = s end
+		local entrance = Rows(root, IsEntrance, 1)[1]
+		if entrance then
+			more[#more + 1] = Step(addon, "browse first dungeon entrance", function(step)
+				Note(step, "entrance", Str(RowData(entrance).entrance.name))
+				entrance:Click("LeftButton")
+			end, {
+				wait = 4, shot = true, texts = true,
+				after = function(step)
+					Expect(step, root.back and root.back:IsShown(), "back button not shown in browse mode")
+					local browse = RowSteps(addon, root, IsItem, 3)
+					for _, s in ipairs(ControlSteps(addon, root, nil, 3)) do
+						-- Only the difficulty chips and the back button are new here.
+						if not s.label:find("^hover") and not s.label:find("%[check%]") then browse[#browse + 1] = s end
+					end
+					Push(browse)
+				end,
+			})
+		end
+		local pill = TreasureTrailPill
+		if pill and pill:IsVisible() then
+			more[#more + 1] = Step(addon, "hover the pill", function(step) Hover(pill, step) end, { wait = 0.4, tooltip = true, shot = true, after = function() Unhover(pill) end })
+		end
+		more[#more + 1] = CloseStep(addon)
+		Push(more)
+	end, { wait = 0 })
+	return steps
+end
+
+local BUILDERS = { Barracks = BarracksSteps, Keepsake = KeepsakeSteps, TreasureTrail = TrailSteps }
+
+-- Runner --------------------------------------------------------------------------------
+
+local RunNext
+
+local function Summarize()
+	local s = { steps = #run.steps, passed = 0, failed = 0, checks = 0, shots = 0 }
+	for _, st in ipairs(run.steps) do
+		s.checks = s.checks + (st.checks or 0)
+		if st.ok then s.passed = s.passed + 1 else s.failed = s.failed + 1 end
+		if st.shot then s.shots = s.shots + 1 end
+	end
+	s.newErrors = Total(session.errors) - run.base.errors
+	s.newCaught = Total(session.caught) - run.base.caught
+	s.newBlocked = Total(session.blocked) - run.base.blocked
+	s.sessionErrors = Total(session.errors)
+	return s
+end
+
+local function Complete(reason)
+	queue = {}
+	current = nil
+	run.finishedAt = date("%Y-%m-%d %H:%M:%S")
+	run.aborted = reason
+	run.summary = Summarize()
+	MorigollDevTestDB.run = run
+	local s = run.summary
+	local ok = s.failed == 0 and s.newErrors == 0 and s.newBlocked == 0 and not reason
+	local text = reason and ("DevTest parado: " .. reason .. ". Haz /reload para guardar el informe.")
+		or format("DevTest terminado: %d/%d pasos OK, %d errores Lua, %d capturados, %d bloqueos. Haz /reload para guardar el informe.", s.passed, s.steps, s.newErrors, s.newCaught, s.newBlocked)
+	Banner(text, ok and 0.45 or 1, ok and 0.9 or 0.4, ok and 0.6 or 0.4)
+	print("|cffff5ec4DevTest|r " .. text)
+	C_Timer.After(20, function() if not current then banner:Hide() end end)
+end
+
+local function Finish(step)
+	local err, caught, blocked = Total(session.errors), Total(session.caught), Total(session.blocked)
+	local result = {
+		n = step.n, addon = step.addon, label = step.label,
+		errors = err - step.base.errors, caught = caught - step.base.caught, blocked = blocked - step.base.blocked,
+		checks = step.checks, fails = step.fails, data = step.data, shot = step.shotAt,
+		tooltip = step.tooltipLines, texts = step.textList, bad = step.bad,
+	}
+	result.ok = not step.fails and result.errors == 0 and result.blocked == 0 and not (step.bad and #step.bad > 0)
+	run.steps[#run.steps + 1] = result
+end
+
+local function Protected(step, fn)
+	local ok, err = xpcall(function() fn(step) end, function(e) return Str(e) .. "\n" .. debugstack(2, 8, 0) end)
+	if not ok then Expect(step, false, "exception: " .. err) end
+end
+
+RunNext = function()
+	local step = table.remove(queue, 1)
+	if not step then return Complete() end
+	if InCombatLockdown() then return Complete("has entrado en combate") end
+	run.count = run.count + 1
+	step.n = run.count
+	step.base = { errors = Total(session.errors), caught = Total(session.caught), blocked = Total(session.blocked) }
+	current = step
+	Banner(format("DevTest %d · %s · %s   no toques nada ni muevas el ratón", step.n, step.addon or "", step.label), 1, 0.85, 0.95)
+	Protected(step, step.fn)
+	C_Timer.After(step.wait, function()
+		if step.tooltip then
+			step.tooltipLines = TooltipLines(step.hovered)
+			if not step.tooltipLines then Note(step, "tooltip", "none from this control") end
+		end
+		local root = step.addon and Window(step.addon)
+		if step.texts and root and root:IsShown() then
+			step.textList = Texts(root)
+			step.bad = BadTexts(step.textList)
+		end
+		if step.tooltipLines then
+			local bad = BadTexts(step.tooltipLines)
+			if #bad > 0 then step.bad = bad end
+		end
+		local function Done()
+			if step.after then Protected(step, step.after) end
+			Finish(step)
+			RunNext()
+		end
+		local budget = run.shotsLeft[step.addon or ""] or 0
+		if step.shot and budget > 0 and Screenshot then
+			run.shotsLeft[step.addon] = budget - 1
+			step.shotAt = date("%H:%M:%S")
+			Screenshot()
+			C_Timer.After(0.9, Done)
+		else
+			Done()
+		end
+	end)
+end
+
+local function Start(only)
+	if current then
+		print("|cffff5ec4DevTest|r ya está en marcha")
+		return
+	end
+	if InCombatLockdown() then
+		print("|cffff5ec4DevTest|r no se puede en combate")
+		return
+	end
+	InstallHandler()
+	run = {
+		startedAt = date("%Y-%m-%d %H:%M:%S"),
+		env = Env(), addons = {}, steps = {}, count = 0, snapshots = {}, shotsLeft = {},
+		base = { errors = Total(session.errors), caught = Total(session.caught), blocked = Total(session.blocked) },
+		handlerInstalled = geterrorhandler() == handler,
+	}
+	queue = {}
+	for _, name in ipairs(TARGETS) do
+		run.addons[name] = AddonStatus(name)
+		if not only or name:lower():find(only, 1, true) then
+			run.shotsLeft[name] = SHOTS_PER_ADDON
+			if run.addons[name].loaded then
+				for _, s in ipairs(BUILDERS[name]()) do queue[#queue + 1] = s end
+			end
+		end
+	end
+	run.shotsLeft[""] = 0
+	MorigollDevTestDB.run = run
+	RunNext()
+end
+
+SLASH_MORIGOLLDEVTEST1 = "/devtest"
+SlashCmdList.MORIGOLLDEVTEST = function(msg)
+	msg = strtrim(msg or ""):lower()
+	if msg == "status" then
+		print(format("|cffff5ec4DevTest|r session: %d Lua errors, %d caught, %d blocked, %d warnings; handler %s",
+			Total(session.errors), Total(session.caught), Total(session.blocked), Total(session.warnings),
+			geterrorhandler() == handler and "installed" or "NOT installed"))
+	elseif msg == "stop" then
+		if current then Complete("parado a mano") end
+	else
+		Start(msg ~= "" and msg or nil)
+	end
+end

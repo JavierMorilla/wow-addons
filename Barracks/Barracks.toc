@@ -5,6 +5,7 @@
 ## Author: Morigoll
 ## Version: 0.2.0
 ## SavedVariables: BarracksDB
+## AllowAddOnTableAccess: 1
 ## IconTexture: Interface\Icons\INV_Misc_Book_09
 ## AddonCompartmentFunc: Barracks_OnAddonCompartmentClick
 

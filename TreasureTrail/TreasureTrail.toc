@@ -5,6 +5,7 @@
 ## Author: Morigoll
 ## Version: 0.2.0
 ## SavedVariables: TreasureTrailDB
+## AllowAddOnTableAccess: 1
 ## IconTexture: Interface\Icons\INV_Misc_Spyglass_02
 ## AddonCompartmentFunc: TreasureTrail_OnAddonCompartmentClick
 
