@@ -3,7 +3,7 @@
 ## Notes: Every alt at a glance: item level, gold, Great Vault, keystone, crests, coffer keys, lockouts and rested XP.
 ## Notes-esES: Todos tus alts de un vistazo: nivel de objeto, oro, Gran Cámara, piedra angular, blasones, llaves, bloqueos y descanso.
 ## Author: Morigoll
-## Version: 0.2.0
+## Version: 0.2.1
 ## SavedVariables: BarracksDB
 ## AllowAddOnTableAccess: 1
 ## IconTexture: Interface\Icons\INV_Misc_Book_09

@@ -1,5 +1,13 @@
 # Barracks
 
+## 0.2.1
+
+Tested in game on WoW Forever.
+
+- On WoW Forever the Great Vault, keystone, crest and coffer key columns are now really hidden (0.2.0 meant to, but they still showed)
+- Gold under 100 also shows silver, and under 1 gold silver and copper, instead of reading "0"
+- The tooltip only shows the currencies section when the character has any of them, and the warband bank line only when it holds gold
+
 ## 0.2.0
 
 Beta: runs on retail Midnight (12.1.5, 12.1.7) and WoW Forever as well as The War Within. Not yet tested in game on those clients; please report any error.

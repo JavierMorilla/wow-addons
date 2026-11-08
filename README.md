@@ -47,6 +47,7 @@ What you can still collect where you stand: `/trail` (or the pill under the mini
 - Inside a dungeon or raid: the mounts, pets, toys and appearances your character can still collect from each boss, marking bosses already killed this lockout
 - Click opens the item in your collections, ctrl-click previews it, shift-click links it
 - Zone matching reads the source text the game gives each mount and pet, so it can miss items whose source does not name the zone, and two zones with the same name share their results
+- On WoW Forever, whose client has no source texts and no Adventure Guide, it uses its own list of vanilla mounts, pets and boss loot (`TreasureTrail/ForeverData.lua`, built by `tools/forever-data/build.mjs`), filtered by your race, faction and class
 
 ## Development
 

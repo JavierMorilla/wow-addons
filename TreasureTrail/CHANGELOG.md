@@ -1,5 +1,15 @@
 # Treasure Trail
 
+## 0.3.0
+
+Treasure Trail now works on WoW Forever, tested in game.
+
+- That client gives no source for mounts and pets and has no Adventure Guide, so Treasure Trail carries its own list of where every vanilla mount, pet and dungeon or raid item comes from, and checks your collections against it
+- In a zone: the mounts and pets your race and faction can still get there, with their source (vendor, drop with its chance, container or quest), and the dungeons and raids whose entrance is in the zone
+- In a dungeon or raid, or browsing one from its entrance: the mounts, pets and appearances your class can still collect, by boss
+- Content from a later patch is marked with the patch it arrives in
+- Items the game has not loaded yet are fetched and the list fills in on its own a moment later
+
 ## 0.2.0
 
 Beta: runs on retail Midnight (12.1.5, 12.1.7) and WoW Forever as well as The War Within. Not yet tested in game on those clients; please report any error.

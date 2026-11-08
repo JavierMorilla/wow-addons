@@ -22,13 +22,16 @@
 
 ### Handy
 - Click opens the mount or pet in your collections, **ctrl-click previews** it, shift-click links it
-- Everything comes from the game's own data (Adventure Guide and collection journals): nothing to download or update
+- On retail everything comes from the game's own data (Adventure Guide and collection journals): nothing to download or update
 - Shift-drag the pill to move it; `/trail`, the addon compartment, or a key binding open the panel
 - No libraries; English and Spanish
 
 Zone results come from the source text the game gives each mount and pet, so an item whose source does not name the zone will not show there.
 
-Made for retail **The War Within (11.2.5)**. Also runs on **Midnight (12.1)** and **WoW Forever** (not yet tested in game there, so please report any error).
+Made for retail **The War Within (11.2.5)**. Also runs on **Midnight (12.1)** (not yet tested in game there, so please report any error).
+
+### WoW Forever
+Tested in game. That client gives no sources for mounts and pets and has no Adventure Guide, so Treasure Trail brings its own list of where every vanilla mount, pet and dungeon or raid item comes from: in each zone it shows the mounts and pets your race and faction can still get, with their vendor, drop or quest, and in each dungeon or raid the mounts, pets and appearances your class can still collect, by boss. Content from a later patch is marked with the patch it arrives in. Mounts that WoW Forever added on its own are not in the list yet.
 
 ---
 
@@ -39,3 +42,4 @@ Made for retail **The War Within (11.2.5)**. Also runs on **Midnight (12.1)** an
 - **En el mundo:** monturas y mascotas que te faltan de la zona, mascotas salvajes aparte, y las mazmorras y bandas con entrada en la zona (púlsalas para ver lo que te falta en cada dificultad)
 - **En una mazmorra o banda:** monturas, mascotas, juguetes y apariencias que aún puedes conseguir, por jefe, marcando los que ya mataste
 - Clic abre tus colecciones, Ctrl+clic lo prueba, Mayús+clic lo enlaza
+- **En WoW Forever** trae su propia lista de dónde sale cada montura, mascota y objeto de mazmorra o banda de vanilla, porque ese cliente no da los orígenes
