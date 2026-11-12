@@ -52,12 +52,18 @@ local EVENT_PARTS = {
 	SKILL_LINES_CHANGED = "professions",
 }
 
+-- Vanilla content has no vault, keystone or tracked currencies: their events
+-- (bag updates above all) would only trigger snapshots that record nothing new.
+local MODERN_PARTS = { currency = true, vault = true, mplus = true }
+
 local f = CreateFrame("Frame")
 f:RegisterEvent("ADDON_LOADED")
 f:RegisterEvent("PLAYER_ENTERING_WORLD")
 f:RegisterEvent("PLAYER_LOGOUT")
-for event in pairs(EVENT_PARTS) do
-	f:RegisterEvent(event)
+for event, part in pairs(EVENT_PARTS) do
+	if not (ns.vanillaContent and MODERN_PARTS[part]) then
+		f:RegisterEvent(event)
+	end
 end
 
 f:SetScript("OnEvent", function(_, event, arg1, arg2)
@@ -69,8 +75,10 @@ f:SetScript("OnEvent", function(_, event, arg1, arg2)
 	elseif event == "PLAYER_ENTERING_WORLD" then
 		if arg1 or arg2 then -- login or /reload
 			RequestRaidInfo()
-			C_MythicPlus.RequestMapInfo()
-			C_MythicPlus.RequestRewards()
+			if not ns.vanillaContent then
+				C_MythicPlus.RequestMapInfo()
+				C_MythicPlus.RequestRewards()
+			end
 			C_Timer.After(3, function()
 				ns.Collect()
 				if ns.Refresh then ns.Refresh() end
@@ -90,7 +98,14 @@ SLASH_BARRACKS1 = "/alts"
 SLASH_BARRACKS2 = "/barracks"
 SlashCmdList.BARRACKS = function(msg)
 	msg = strtrim(msg or ""):lower()
-	if msg == "debug" then
+	local scale = msg:match("^scale%s*(%S*)$") or msg:match("^escala%s*(%S*)$") or msg:match("^tama[^%s]*o%s*(%S*)$")
+	if scale then
+		-- "/alts scale 110", "/alts scale 1.1"; no number puts it back to 100%
+		local n = tonumber((scale:gsub("%%", ""))) or 1
+		if n > 3 then n = n / 100 end
+		ns.SetScale(n)
+		print("|cff66ccffBarracks|r " .. L.ScaleSet:format(ns.db.scale * 100 + 0.5))
+	elseif msg == "debug" then
 		ns.debug = not ns.debug
 		print("|cff66ccffBarracks|r debug", ns.debug and "on" or "off")
 	elseif msg == "boton" or msg == "botón" or msg == "button" or msg == "minimap" then

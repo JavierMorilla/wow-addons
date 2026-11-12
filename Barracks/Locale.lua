@@ -50,6 +50,13 @@ local L = {
 	MinimapRight = "Right-click: hide this button",
 	MinimapHidden = "Minimap button hidden. Type |cffffd100/alts button|r to bring it back.",
 	PendingRewards = "Great Vault rewards waiting: %d",
+	Settings = "Settings",
+	Scale = "Window size",
+	MinimapButton = "Minimap button",
+	DeleteConfirm = "Forget %s?\n\nTheir saved data is removed; it comes back the next time you log in on them.",
+	Search = "Filter...",
+	GoldBy = "Gold by realm",
+	ScaleSet = "Window size: %d%%. |cffffd100/alts scale 100|r puts it back.",
 }
 
 local locale = GetLocale()
@@ -101,6 +108,13 @@ if locale == "esES" or locale == "esMX" then
 	L.MinimapRight = "Clic derecho: ocultar este botón"
 	L.MinimapHidden = "Botón del minimapa oculto. Escribe |cffffd100/alts boton|r para recuperarlo."
 	L.PendingRewards = "Recompensas esperando en la Gran Cámara: %d"
+	L.Settings = "Ajustes"
+	L.Scale = "Tamaño de la ventana"
+	L.MinimapButton = "Botón del minimapa"
+	L.DeleteConfirm = "¿Olvidar a %s?\n\nSe borran sus datos guardados; vuelven la próxima vez que entres con ese personaje."
+	L.Search = "Filtrar..."
+	L.GoldBy = "Oro por reino"
+	L.ScaleSet = "Tamaño de la ventana: %d%%. |cffffd100/alts scale 100|r lo deja como estaba."
 end
 
 ns.L = L

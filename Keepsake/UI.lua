@@ -28,7 +28,13 @@ local FILTERS = {
 	{ key = "collection", label = L.Collection },
 	{ key = "renown", label = L.Renown },
 	{ key = "zone", label = L.Zones },
+	{ key = "note", label = L.Notes },
 }
+if ns.vanilla then -- no renown in vanilla content
+	for i = #FILTERS, 1, -1 do
+		if FILTERS[i].key == "renown" then table.remove(FILTERS, i) end
+	end
+end
 
 local function Font(name, size, color)
 	local f = CreateFont(name)
@@ -104,14 +110,38 @@ local frame
 local selected -- character GUID or ALL
 local search = ""
 
+-- Per-entry text to search in and day key, worked out once per session. Kept
+-- beside the entries (weak keys), never in them: they are saved data.
+local hayCache = setmetatable({}, { __mode = "k" })
+local dayCache = setmetatable({}, { __mode = "k" })
+
+local function Haystack(e)
+	local hay = hayCache[e]
+	if not hay then
+		hay = ((e.title or "") .. " " .. (e.detail or "") .. " " .. (e.zone or "")):lower()
+		hay = hay:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+		hayCache[e] = hay
+	end
+	return hay
+end
+
+local function DayKey(e)
+	local day = dayCache[e]
+	if not day then
+		day = date("%Y%m%d", e.t)
+		dayCache[e] = day
+	end
+	return day
+end
+
+function ns.ForgetEntryCache(e)
+	hayCache[e], dayCache[e] = nil, nil
+end
+
 local function Matches(e)
 	local filter = ns.db.filter or "all"
 	if filter ~= "all" and (ns.TYPES[e.type] and ns.TYPES[e.type].group) ~= filter then return false end
-	if search ~= "" then
-		local hay = ((e.title or "") .. " " .. (e.detail or "") .. " " .. (e.zone or "")):lower()
-		hay = hay:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
-		if not hay:find(search, 1, true) then return false end
-	end
+	if search ~= "" and not Haystack(e):find(search, 1, true) then return false end
 	return true
 end
 
@@ -124,27 +154,42 @@ local function DayLabel(t)
 	return L.FormatDay(d)
 end
 
-local function BuildList()
+-- Every entry of the selected character(s), newest first. Sorting thousands of
+-- imported achievements is the slow part, so it is redone only when entries
+-- were added or the selection changed; filters and the search walk this list.
+local sorted = {}
+
+local function SortedEntries()
+	if sorted.items and sorted.selected == selected and sorted.version == ns.version then
+		return sorted.items
+	end
 	local items = {}
 	for guid, c in pairs(ns.db.chars) do
 		if selected == ALL or guid == selected then
 			for _, e in ipairs(c.entries) do
-				if Matches(e) then items[#items + 1] = { entry = e, char = c } end
+				items[#items + 1] = { entry = e, char = c }
 			end
 		end
 	end
 	table.sort(items, function(a, b) return a.entry.t > b.entry.t end)
+	sorted.items, sorted.selected, sorted.version = items, selected, ns.version
+	return items
+end
 
-	local list, lastDay = {}, nil
-	for _, it in ipairs(items) do
-		local day = date("%Y%m%d", it.entry.t)
-		if day ~= lastDay then
-			list[#list + 1] = { day = DayLabel(it.entry.t) }
-			lastDay = day
+local function BuildList()
+	local list, lastDay, count = {}, nil, 0
+	for _, it in ipairs(SortedEntries()) do
+		if Matches(it.entry) then
+			count = count + 1
+			local day = DayKey(it.entry)
+			if day ~= lastDay then
+				list[#list + 1] = { day = DayLabel(it.entry.t) }
+				lastDay = day
+			end
+			list[#list + 1] = it
 		end
-		list[#list + 1] = it
 	end
-	return list, #items
+	return list, count
 end
 
 -- Timeline rows ---------------------------------------------------------------------
@@ -175,14 +220,70 @@ local function ShowEntryTooltip(row)
 	elseif e.type == "toy" and e.itemID then
 		tt:SetToyByItemID(e.itemID)
 	else
-		tt:SetText(e.title or "", 1, 1, 1)
+		tt:SetText(e.title or "", 1, 1, 1, 1, true) -- wrapped: a note can be long
 		if e.detail then tt:AddLine(e.detail, unpack(C.dim)) end
 	end
 	tt:AddLine(" ")
 	if e.zone and e.zone ~= "" then tt:AddLine(e.zone, unpack(C.accent)) end
-	tt:AddLine(e.imported and date("%d/%m/%Y", e.t) or date("%d/%m/%Y %H:%M", e.t), unpack(C.dim))
+	tt:AddLine(e.imported and date(L.DateFormat, e.t) or date(L.DateFormat .. " %H:%M", e.t), unpack(C.dim))
 	if e.shot then tt:AddLine(L.ScreenshotSaved, unpack(C.dim)) end
+	if MenuUtil then tt:AddLine(L.RowHints, unpack(C.faint)) end
 	tt:Show()
+end
+
+-- Notes: one dialog writes a new note or, given an entry, rewrites it.
+local function PopupEditBox(popup)
+	return (popup.GetEditBox and popup:GetEditBox()) or popup.editBox or popup.EditBox
+end
+
+local function AcceptNote(popup, entry)
+	local text = strtrim(PopupEditBox(popup):GetText() or "")
+	if text == "" then return end
+	if entry then
+		entry.title = text
+		ns.version = ns.version + 1 -- its cached search text is stale
+		ns.ForgetEntryCache(entry)
+		ns.Refresh()
+	else
+		ns.AddNote(text)
+	end
+end
+
+StaticPopupDialogs.KEEPSAKE_NOTE = {
+	text = L.NotePrompt,
+	button1 = ACCEPT,
+	button2 = CANCEL,
+	hasEditBox = true,
+	maxLetters = 240,
+	editBoxWidth = 320,
+	OnShow = function(self, entry)
+		local box = PopupEditBox(self)
+		box:SetText(entry and entry.title or "")
+		box:SetFocus()
+		box:HighlightText()
+	end,
+	OnAccept = AcceptNote,
+	EditBoxOnEnterPressed = function(self)
+		local popup = self:GetParent()
+		AcceptNote(popup, popup.data)
+		popup:Hide()
+	end,
+	EditBoxOnEscapePressed = function(self) self:GetParent():Hide() end,
+	timeout = 0,
+	whileDead = true,
+	hideOnEscape = true,
+	preferredIndex = 3,
+}
+
+local function OpenEntryMenu(row)
+	if not MenuUtil then return end
+	local e, c = row.data.entry, row.data.char
+	MenuUtil.CreateContextMenu(row, function(_, root)
+		if e.type == "note" then
+			root:CreateButton(L.EditNote, function() StaticPopup_Show("KEEPSAKE_NOTE", nil, nil, e) end)
+		end
+		root:CreateButton("|cffff6060" .. L.DeleteEntry .. "|r", function() ns.DeleteEntry(c, e) end)
+	end)
 end
 
 local function BuildEntry(row)
@@ -224,7 +325,7 @@ local function BuildEntry(row)
 	row.who:SetPoint("RIGHT", -12, 0)
 	row.who:SetJustifyH("RIGHT")
 
-	row:RegisterForClicks("LeftButtonUp")
+	row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 	row:SetScript("OnEnter", function(self)
 		self.hl:Show()
 		ShowEntryTooltip(self)
@@ -233,9 +334,12 @@ local function BuildEntry(row)
 		self.hl:Hide()
 		GameTooltip:Hide()
 	end)
-	row:SetScript("OnClick", function(self)
+	row:SetScript("OnClick", function(self, button)
 		local e = self.data.entry
-		if IsModifiedClick("CHATLINK") then
+		if button == "RightButton" then
+			GameTooltip:Hide()
+			OpenEntryMenu(self)
+		elseif IsModifiedClick("CHATLINK") then
 			InsertLink(EntryLink(e))
 		elseif e.type == "achievement" and e.id then
 			-- Renamed in 12.0
@@ -290,16 +394,44 @@ end
 
 -- Window ------------------------------------------------------------------------------
 
+-- The character list scrolls with the mouse wheel once it outgrows the
+-- sidebar; a thin bar on its right edge shows where the view is.
+local SIDE_VIEW_H = H - HEADER_H - FOOTER_H
+
+local function UpdateSideScroll()
+	local scroll = frame.sideScroll
+	local contentH = frame.sideContent:GetHeight()
+	local range = math.max(0, contentH - SIDE_VIEW_H)
+	local offset = math.max(0, math.min(scroll:GetVerticalScroll(), range))
+	scroll:SetVerticalScroll(offset)
+	local thumb = frame.sideThumb
+	thumb:SetShown(range > 0)
+	if range > 0 then
+		local thumbH = math.max(24, SIDE_VIEW_H * SIDE_VIEW_H / contentH)
+		thumb:SetHeight(thumbH)
+		thumb:ClearAllPoints()
+		thumb:SetPoint("TOPRIGHT", frame.sidebar, "TOPRIGHT", -2, -(SIDE_VIEW_H - thumbH) * offset / range)
+	end
+end
+
 local function UpdateSidebar()
-	local chars = {}
-	for guid, c in pairs(ns.db.chars) do chars[#chars + 1] = { guid = guid, c = c } end
-	table.sort(chars, function(a, b) return (a.c.name or "") < (b.c.name or "") end)
+	local chars, sameName = {}, {}
+	for guid, c in pairs(ns.db.chars) do
+		chars[#chars + 1] = { guid = guid, c = c }
+		local name = c.name or "?"
+		sameName[name] = (sameName[name] or 0) + 1
+	end
+	table.sort(chars, function(a, b)
+		local na, nb = a.c.name or "", b.c.name or ""
+		if na ~= nb then return na < nb end
+		return (a.c.realm or "") < (b.c.realm or "")
+	end)
 
 	local buttons = frame.charButtons
 	local function Set(i, key, label, count, r, g, b)
 		local btn = buttons[i]
 		if not btn then
-			btn = CreateFrame("Button", nil, frame.sidebar)
+			btn = CreateFrame("Button", nil, frame.sideContent)
 			btn:SetSize(SIDE_W - 16, 30)
 			btn:SetPoint("TOPLEFT", 8, -8 - (i - 1) * 32)
 			btn.bg = Fill(btn, { 1, 1, 1, 0 })
@@ -335,9 +467,16 @@ local function UpdateSidebar()
 	for _, it in ipairs(chars) do total = total + #it.c.entries end
 	Set(1, ALL, L.AllCharacters, total, unpack(C.accent))
 	for i, it in ipairs(chars) do
-		Set(i + 1, it.guid, it.c.name or "?", #it.c.entries, ClassColor(it.c.class))
+		local label = it.c.name or "?"
+		-- Two characters with the same name are told apart by their realm
+		if sameName[label] > 1 and it.c.realm and it.c.realm ~= "" then
+			label = label .. " |cff8f96a6" .. it.c.realm .. "|r"
+		end
+		Set(i + 1, it.guid, label, #it.c.entries, ClassColor(it.c.class))
 	end
 	for i = #chars + 2, #buttons do buttons[i]:Hide() end
+	frame.sideContent:SetHeight(16 + (#chars + 1) * 32)
+	UpdateSideScroll()
 end
 
 function ns.Refresh()
@@ -357,7 +496,7 @@ function ns.Refresh()
 		frame.subtitle:SetText(L.Entries:format(count))
 	else
 		local c = ns.db.chars[selected]
-		frame.subtitle:SetText(format("%s · %s · %s", c.name or "?", L.Entries:format(count), L.Since:format(date("%d/%m/%Y", c.created or time()))))
+		frame.subtitle:SetText(format("%s · %s · %s", c.name or "?", L.Entries:format(count), L.Since:format(date(L.DateFormat, c.created or time()))))
 	end
 
 	local c = ns.db.chars[UnitGUID("player")]
@@ -365,9 +504,41 @@ function ns.Refresh()
 	frame.shots:SetChecked(ns.db.screenshots)
 end
 
+function ns.SetScale(scale)
+	scale = math.max(0.6, math.min(tonumber(scale) or 1, 1.6))
+	ns.db.scale = scale
+	if frame then frame:SetScale(scale) end
+end
+
+local SCALES = { 0.8, 0.9, 1, 1.1, 1.2, 1.3 }
+
+local function OpenSettings(owner)
+	MenuUtil.CreateContextMenu(owner, function(_, root)
+		root:CreateTitle(L.Settings)
+		local scale = root:CreateButton(L.Scale)
+		for _, v in ipairs(SCALES) do
+			scale:CreateRadio(format("%d%%", v * 100 + 0.5), function()
+				return math.abs((ns.db.scale or 1) - v) < 0.01
+			end, function() ns.SetScale(v) end)
+		end
+		local loot = root:CreateButton(L.LootFrom)
+		for _, q in ipairs({ Enum.ItemQuality.Rare, Enum.ItemQuality.Epic, Enum.ItemQuality.Legendary }) do
+			local color = ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[q]
+			local name = _G["ITEM_QUALITY" .. q .. "_DESC"] or tostring(q)
+			loot:CreateRadio(color and color.hex and (color.hex .. name .. "|r") or name, function()
+				return ns.LootQuality() == q
+			end, function() ns.db.lootQuality = q end)
+		end
+		root:CreateCheckbox(L.MinimapButton, function() return not ns.db.minimapHide end, function()
+			ns.SetMinimapHidden(not ns.db.minimapHide)
+		end)
+	end)
+end
+
 local function CreateWindow()
 	local f = CreateFrame("Frame", "KeepsakeFrame", UIParent, "BackdropTemplate")
 	f:SetSize(W, H)
+	f:SetScale(ns.db.scale or 1)
 	f:SetFrameStrata("HIGH")
 	f:SetToplevel(true)
 	f:SetClampedToScreen(true)
@@ -390,6 +561,7 @@ local function CreateWindow()
 		f:SetPoint("CENTER")
 	end
 	tinsert(UISpecialFrames, "KeepsakeFrame")
+	f:HookScript("OnHide", function() StaticPopup_Hide("KEEPSAKE_NOTE") end)
 
 	local glow = f:CreateTexture(nil, "BORDER")
 	glow:SetPoint("TOPLEFT", 1, -1)
@@ -412,6 +584,28 @@ local function CreateWindow()
 	local close = CreateFrame("Button", nil, f, "UIPanelCloseButton")
 	close:SetPoint("TOPRIGHT", -4, -4)
 
+	if MenuUtil then
+		local gear = CreateFrame("Button", nil, f)
+		gear:SetSize(16, 16)
+		gear:SetPoint("TOPRIGHT", -36, -12)
+		gear.icon = gear:CreateTexture(nil, "ARTWORK")
+		gear.icon:SetAllPoints()
+		gear.icon:SetTexture("Interface\\Buttons\\UI-OptionsButton")
+		gear.icon:SetVertexColor(unpack(C.dim))
+		gear:SetScript("OnEnter", function(self)
+			self.icon:SetVertexColor(unpack(C.accent))
+			GameTooltip:SetOwner(self, "ANCHOR_TOP")
+			GameTooltip:SetText(L.Settings)
+			GameTooltip:Show()
+		end)
+		gear:SetScript("OnLeave", function(self)
+			self.icon:SetVertexColor(unpack(C.dim))
+			GameTooltip:Hide()
+		end)
+		gear:SetScript("OnClick", OpenSettings)
+		f.gear = gear
+	end
+
 	-- Characters
 	local sidebar = CreateFrame("Frame", nil, f)
 	sidebar:SetPoint("TOPLEFT", 1, -HEADER_H)
@@ -420,6 +614,21 @@ local function CreateWindow()
 	Fill(sidebar, C.panel)
 	f.sidebar = sidebar
 	f.charButtons = {}
+	local sideScroll = CreateFrame("ScrollFrame", nil, sidebar)
+	sideScroll:SetAllPoints()
+	local sideContent = CreateFrame("Frame", nil, sideScroll)
+	sideContent:SetSize(SIDE_W, 1)
+	sideScroll:SetScrollChild(sideContent)
+	sideScroll:EnableMouseWheel(true)
+	sideScroll:SetScript("OnMouseWheel", function(self, delta)
+		self:SetVerticalScroll(math.max(0, self:GetVerticalScroll() - delta * 64))
+		UpdateSideScroll()
+	end)
+	f.sideScroll, f.sideContent = sideScroll, sideContent
+	f.sideThumb = sidebar:CreateTexture(nil, "OVERLAY")
+	f.sideThumb:SetWidth(2)
+	f.sideThumb:SetColorTexture(unpack(C.faint))
+	f.sideThumb:Hide()
 
 	-- Filters and search
 	local tools = CreateFrame("Frame", nil, f)
@@ -453,10 +662,16 @@ local function CreateWindow()
 	local hint = Text(box, F.small)
 	hint:SetPoint("LEFT", 8, 0)
 	hint:SetText(L.Search)
+	-- The list is rebuilt a moment after the last keystroke, not on each one
+	local searchTimer
 	box:SetScript("OnTextChanged", function(self)
 		search = strtrim(self:GetText()):lower()
 		hint:SetShown(self:GetText() == "")
-		ns.Refresh()
+		if searchTimer then searchTimer:Cancel() end
+		searchTimer = C_Timer.NewTimer(0.15, function()
+			searchTimer = nil
+			ns.Refresh()
+		end)
 	end)
 	box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
 	box:SetScript("OnEditFocusGained", function(self) self:SetBackdropBorderColor(unpack(C.accent)) end)
@@ -505,9 +720,15 @@ local function CreateWindow()
 	shotsLabel:SetText(L.Screenshots)
 	f.shots = shots
 
+	local note = FlatButton(footer, L.AddNote, 10, 22)
+	note:SetWidth(note.text:GetUnboundedStringWidth() + 24)
+	note:SetPoint("RIGHT", -PAD, 0)
+	note:SetScript("OnClick", function() StaticPopup_Show("KEEPSAKE_NOTE") end)
+	f.note = note
+
 	local import = FlatButton(footer, L.Import, 10, 22)
 	import:SetWidth(import.text:GetUnboundedStringWidth() + 24)
-	import:SetPoint("RIGHT", -PAD, 0)
+	import:SetPoint("RIGHT", note, "LEFT", -6, 0)
 	import:SetScript("OnClick", function(self)
 		self:Disable()
 		ns.ImportAchievements(function(n)

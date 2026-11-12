@@ -14,10 +14,27 @@ ns.TYPES = {
 	toy = { color = { 0.95, 0.5, 0.75 }, group = "collection" },
 	renown = { color = { 0.4, 0.7, 1 }, icon = "Interface\\Icons\\Achievement_Reputation_01", group = "renown" },
 	zone = { color = { 0.55, 0.78, 0.55 }, icon = "Interface\\Icons\\INV_Misc_Map_01", group = "zone" },
+	note = { color = { 0.93, 0.9, 0.78 }, icon = "Interface\\Icons\\INV_Misc_Note_01", group = "note" },
 }
+
+-- WoW Forever (interface 16001) runs vanilla content on the retail client:
+-- no renown, and a rare item is a milestone there the way an epic is later on.
+ns.vanilla = select(4, GetBuildInfo()) < 20000
+
+-- Lowest item quality written down as loot; the settings menu changes it.
+function ns.LootQuality()
+	return ns.db.lootQuality or (ns.vanilla and Enum.ItemQuality.Rare or Enum.ItemQuality.Epic)
+end
 
 -- Moments worth a screenshot when automatic screenshots are on.
 local SHOT_TYPES = { level = true, achievement = true, boss = true, mplus = true, mount = true }
+-- A boss kill can bring its achievement and its mount in the same second: one
+-- screenshot covers them all.
+local SHOT_GAP = 5
+local lastShot
+
+-- Bumped whenever entries are added, so the window knows its sorted list is stale.
+ns.version = 0
 
 local DEFAULTS = { chars = {}, screenshots = true, filter = "all" }
 
@@ -61,11 +78,36 @@ function ns.Add(entry, c)
 		entry.zone = entry.zone or ZoneLabel()
 	end
 	table.insert(c.entries, entry)
+	ns.version = ns.version + 1
 	if ns.db.screenshots and SHOT_TYPES[entry.type] and not entry.imported then
 		entry.shot = true
-		C_Timer.After(1.5, Screenshot) -- let the level-up or achievement banner show first
+		local now = GetTime()
+		if not lastShot or now - lastShot >= SHOT_GAP then
+			lastShot = now
+			C_Timer.After(1.5, Screenshot) -- let the level-up or achievement banner show first
+		end
 	end
 	if ns.Refresh then ns.Refresh() end
+end
+
+-- Notes are the player's own entries.
+function ns.AddNote(text)
+	text = strtrim(text or "")
+	if text == "" then return false end
+	ns.Add({ type = "note", title = text })
+	return true
+end
+
+function ns.DeleteEntry(char, entry)
+	for i, e in ipairs(char.entries) do
+		if e == entry then
+			table.remove(char.entries, i)
+			ns.version = ns.version + 1
+			if ns.Refresh then ns.Refresh() end
+			return true
+		end
+	end
+	return false
 end
 
 -- Events ------------------------------------------------------------------------
@@ -121,7 +163,7 @@ local function RecordLoot(link)
 	if not itemID or (recentLoot[itemID] and now - recentLoot[itemID] < 10) then return end
 	recentLoot[itemID] = now
 	local quality = C_Item.GetItemQualityByID(link)
-	if not quality or quality < Enum.ItemQuality.Epic then return end
+	if not quality or quality < ns.LootQuality() then return end
 	if quality < Enum.ItemQuality.Legendary and not C_Item.IsEquippableItem(link) then return end
 	local ilvl = C_Item.GetDetailedItemLevelInfo(link)
 	ns.Add({
@@ -251,6 +293,7 @@ function ns.ImportAchievements(onProgress, onDone)
 			if not cat then
 				ticker:Cancel()
 				c.imported = true
+				ns.version = ns.version + 1
 				onDone(added)
 				if ns.Refresh then ns.Refresh() end
 				return
@@ -276,6 +319,22 @@ f:SetScript("OnEvent", function(_, event, ...)
 			if KeepsakeDB[k] == nil then KeepsakeDB[k] = type(v) == "table" and {} or v end
 		end
 		ns.db = KeepsakeDB
+		ns.CreateMinimapButton({
+			name = "KeepsakeMinimapButton",
+			icon = "Interface\\Icons\\INV_Misc_Book_11",
+			angle = 225,
+			onClick = function() ns.Toggle() end,
+			hiddenText = "|cffffc259" .. L.Title .. "|r " .. L.MinimapHidden,
+			tooltip = function(tt)
+				tt:AddLine(L.Title, 1, 0.76, 0.35)
+				local c = ns.db.chars[UnitGUID("player") or ""]
+				if c then tt:AddLine(L.Entries:format(#c.entries), 1, 1, 1) end
+				tt:AddLine(" ")
+				tt:AddLine(L.MinimapClick, 0.56, 0.59, 0.65)
+				tt:AddLine(L.MinimapDrag, 0.56, 0.59, 0.65)
+				tt:AddLine(L.MinimapRight, 0.56, 0.59, 0.65)
+			end,
+		})
 		return
 	end
 	if not ns.db then return end
@@ -289,12 +348,23 @@ SLASH_KEEPSAKE1 = "/keepsake"
 SLASH_KEEPSAKE2 = "/cronica"
 SLASH_KEEPSAKE3 = "/diario"
 SlashCmdList.KEEPSAKE = function(msg)
-	if strtrim(msg or ""):lower() == "debug" then
+	msg = strtrim(msg or "")
+	local cmd, rest = msg:match("^(%S*)%s*(.-)$")
+	cmd = cmd:lower()
+	if cmd == "debug" then
 		ns.debug = not ns.debug
 		print("|cffffc259Keepsake|r debug", ns.debug and "on" or "off")
-		return
+	elseif cmd == "boton" or cmd == "botón" or cmd == "button" or cmd == "minimap" then
+		ns.SetMinimapHidden(not ns.db.minimapHide)
+	elseif cmd == "note" or cmd == "nota" then
+		print("|cffffc259" .. L.Title .. "|r " .. (ns.AddNote(rest) and L.NoteAdded or L.NoteUsage))
+	elseif cmd == "scale" or cmd == "escala" then
+		local n = tonumber((rest:gsub("%%", ""))) or 1
+		if n > 3 then n = n / 100 end
+		ns.SetScale(n)
+	else
+		ns.Toggle()
 	end
-	ns.Toggle()
 end
 
 function Keepsake_OnAddonCompartmentClick()

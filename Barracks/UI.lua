@@ -95,13 +95,13 @@ local function Ago(rec)
 	return format("%dd", math.floor(sec / 86400))
 end
 
--- Season 3 upgrade tracks: Myth 707+, Hero 694+, Champion 681+, Veteran 668+
+-- Coloured by the season's upgrade tracks (Collect.lua); plain when the
+-- season is not known.
 local function ItemLevelColor(ilvl)
 	if not ilvl then return "ff808080" end
-	if ilvl >= 707 then return "ffff8000" end
-	if ilvl >= 694 then return "ffa335ee" end
-	if ilvl >= 681 then return "ff0070dd" end
-	if ilvl >= 668 then return "ff1eff00" end
+	for _, track in ipairs(ns.season and ns.season.ilvlTracks or {}) do
+		if ilvl >= track[1] then return track[2] end
+	end
 	return "ffe6e6e6"
 end
 
@@ -152,10 +152,11 @@ local COLUMNS = {
 		return (ns.HasPendingReward(r) and 100 or 0) + VaultDone(r)
 	end },
 	{ key = "key", label = L.Keystone, width = 150, align = "LEFT", modern = true, value = function(r) return r.score or 0 end },
-	{ key = "crests", label = L.Crests, width = 150, align = "CENTER", modern = true, value = function(r)
-		return Qty(r, ns.CRESTS[4]) * 1e6 + Qty(r, ns.CRESTS[3])
+	{ key = "crests", label = L.Crests, width = 150, align = "CENTER", modern = true, seasonal = true, value = function(r)
+		local n = #ns.CRESTS
+		return Qty(r, ns.CRESTS[n]) * 1e6 + Qty(r, ns.CRESTS[n - 1])
 	end },
-	{ key = "keys", label = L.Keys, width = 56, align = "CENTER", modern = true, value = function(r) return Qty(r, ns.COFFER_KEYS) end },
+	{ key = "keys", label = L.Keys, width = 56, align = "CENTER", modern = true, seasonal = true, value = function(r) return Qty(r, ns.COFFER_KEYS) end },
 	{ key = "rested", label = L.Rested, width = 80, align = "CENTER", value = function(r) return ns.ProjectedRested(r) or -1 end },
 	{ key = "seen", label = L.LastSeen, width = 56, align = "RIGHT", value = function(r)
 		return r.guid == ns.currentGUID and math.huge or (r.lastSeen or 0)
@@ -163,7 +164,7 @@ local COLUMNS = {
 }
 local TOTAL_W = PAD
 for _, col in ipairs(COLUMNS) do
-	col.hidden = col.modern and ns.vanillaContent
+	col.hidden = (col.modern and ns.vanillaContent) or (col.seasonal and not ns.season)
 	col.x = TOTAL_W
 	if not col.hidden then TOTAL_W = TOTAL_W + col.width + 8 end
 end
@@ -289,6 +290,23 @@ local function AnchorCell(row, fs, col, yOffset, xInset)
 	fs:SetJustifyH(col.align)
 end
 
+StaticPopupDialogs.BARRACKS_FORGET = {
+	text = L.DeleteConfirm,
+	button1 = YES,
+	button2 = NO,
+	OnAccept = function(_, guid)
+		local rec = ns.db.chars[guid]
+		ns.db.chars[guid] = nil
+		ns.db.hidden[guid] = nil
+		print("|cff66ccffBarracks|r " .. L.Deleted:format(rec and rec.name or "?"))
+		ns.Refresh()
+	end,
+	timeout = 0,
+	whileDead = true,
+	hideOnEscape = true,
+	preferredIndex = 3,
+}
+
 local function OpenRowMenu(row)
 	local rec, guid = row.rec, row.rec.guid
 	local hidden = ns.db.hidden[guid]
@@ -305,10 +323,7 @@ local function OpenRowMenu(row)
 		end)
 		if guid ~= ns.currentGUID then
 			root:CreateButton("|cffff6060" .. L.Delete .. "|r", function()
-				ns.db.chars[guid] = nil
-				ns.db.hidden[guid] = nil
-				print("|cff66ccffBarracks|r " .. L.Deleted:format(rec.name or "?"))
-				ns.Refresh()
+				StaticPopup_Show("BARRACKS_FORGET", rec.name or "?", nil, guid)
 			end)
 		end
 	end)
@@ -486,7 +501,7 @@ local function UpdateRow(row, data)
 		row.crests:SetText(table.concat(crests, "  "))
 	end
 
-	local keys = rec.currencies and rec.currencies[ns.COFFER_KEYS]
+	local keys = ns.COFFER_KEYS and rec.currencies and rec.currencies[ns.COFFER_KEYS]
 	row.keys:SetText(leveling and "|cff606670–|r" or keys and format("|T%d:13:13|t %d", keys.icon or 134400, keys.quantity) or "–")
 
 	local rested = ns.ProjectedRested(rec)
@@ -509,12 +524,19 @@ end
 -- Window ----------------------------------------------------------------------
 
 local frame
+local filter = "" -- lower-case text typed in the header box: name, realm or class
+
+local function MatchesFilter(rec)
+	if filter == "" then return true end
+	local hay = ((rec.name or "") .. " " .. (rec.realm or "") .. " " .. (rec.className or "")):lower()
+	return hay:find(filter, 1, true) ~= nil
+end
 
 local function SortedList()
 	local db, list = ns.db, {}
 	for guid, rec in pairs(db.chars) do
 		rec.guid = rec.guid or guid
-		if db.showHidden or not db.hidden[guid] then
+		if (db.showHidden or not db.hidden[guid]) and MatchesFilter(rec) then
 			list[#list + 1] = { rec = rec }
 		end
 	end
@@ -625,6 +647,52 @@ local function CreateHeaderButton(parent, col)
 	col.button = b
 end
 
+function ns.SetScale(scale)
+	scale = math.max(0.6, math.min(tonumber(scale) or 1, 1.6))
+	ns.db.scale = scale
+	if frame then frame:SetScale(scale) end
+end
+
+local SCALES = { 0.8, 0.9, 1, 1.1, 1.2, 1.3 }
+
+local function OpenSettings(owner)
+	MenuUtil.CreateContextMenu(owner, function(_, root)
+		root:CreateTitle(L.Settings)
+		local scale = root:CreateButton(L.Scale)
+		for _, v in ipairs(SCALES) do
+			scale:CreateRadio(format("%d%%", v * 100 + 0.5), function()
+				return math.abs((ns.db.scale or 1) - v) < 0.01
+			end, function() ns.SetScale(v) end)
+		end
+		root:CreateCheckbox(L.MinimapButton, function() return not ns.db.minimapHide end, function()
+			ns.SetMinimapHidden(not ns.db.minimapHide)
+		end)
+	end)
+end
+
+-- Gold by realm and faction, richest first, under the header total.
+local function ShowGoldTooltip(owner)
+	local groups, order = {}, {}
+	for _, rec in pairs(ns.db.chars) do
+		local key = (rec.realm or "?") .. (rec.faction and rec.faction ~= "" and ("  |cff808080" .. rec.faction .. "|r") or "")
+		if not groups[key] then
+			groups[key] = 0
+			order[#order + 1] = key
+		end
+		groups[key] = groups[key] + (rec.money or 0)
+	end
+	table.sort(order, function(a, b) return groups[a] > groups[b] end)
+	GameTooltip:SetOwner(owner, "ANCHOR_BOTTOMRIGHT", 0, -4)
+	GameTooltip:AddLine(L.GoldBy, unpack(C.accent))
+	for _, key in ipairs(order) do
+		GameTooltip:AddDoubleLine(key, Money(groups[key]), 0.85, 0.85, 0.85, 1, 1, 1)
+	end
+	if (ns.db.warbandMoney or 0) > 0 then
+		GameTooltip:AddDoubleLine(L.WarbandBank, Money(ns.db.warbandMoney), 0.85, 0.85, 0.85, 1, 1, 1)
+	end
+	GameTooltip:Show()
+end
+
 local function CreateWindow()
 	local f = CreateFrame("Frame", "BarracksFrame", UIParent, "BackdropTemplate")
 	f:SetSize(TOTAL_W, 400)
@@ -672,8 +740,58 @@ local function CreateWindow()
 	local close = CreateFrame("Button", nil, f, "UIPanelCloseButton")
 	close:SetPoint("TOPRIGHT", -4, -4)
 
+	if MenuUtil then
+		local gear = CreateFrame("Button", nil, f)
+		gear:SetSize(16, 16)
+		gear:SetPoint("TOPRIGHT", -36, -12)
+		gear.icon = gear:CreateTexture(nil, "ARTWORK")
+		gear.icon:SetAllPoints()
+		gear.icon:SetTexture("Interface\\Buttons\\UI-OptionsButton")
+		gear.icon:SetVertexColor(unpack(C.dim))
+		gear:SetScript("OnEnter", function(self)
+			self.icon:SetVertexColor(unpack(C.accent))
+			GameTooltip:SetOwner(self, "ANCHOR_TOP")
+			GameTooltip:SetText(L.Settings)
+			GameTooltip:Show()
+		end)
+		gear:SetScript("OnLeave", function(self)
+			self.icon:SetVertexColor(unpack(C.dim))
+			GameTooltip:Hide()
+		end)
+		gear:SetScript("OnClick", OpenSettings)
+		f.gear = gear
+	end
+
+	-- Filter by name, realm or class
+	local box = CreateFrame("EditBox", nil, f, "BackdropTemplate")
+	box:SetSize(130, 20)
+	box:SetPoint("TOPLEFT", PAD + 118, -13)
+	Backdrop(box, C.panel, C.border)
+	box:SetFontObject(F.text)
+	box:SetTextInsets(7, 7, 0, 0)
+	box:SetAutoFocus(false)
+	box:SetMaxLetters(30)
+	local boxHint = Text(box, F.small)
+	boxHint:SetPoint("LEFT", 7, 0)
+	boxHint:SetText(L.Search)
+	box:SetScript("OnTextChanged", function(self)
+		filter = strtrim(self:GetText()):lower()
+		boxHint:SetShown(self:GetText() == "")
+		ns.Refresh()
+	end)
+	box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+	box:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+	box:SetScript("OnEditFocusGained", function(self) self:SetBackdropBorderColor(unpack(C.accent)) end)
+	box:SetScript("OnEditFocusLost", function(self) self:SetBackdropBorderColor(unpack(C.border)) end)
+	f.filterBox = box
+
 	f.total = Text(f, F.num)
-	f.total:SetPoint("TOPRIGHT", -40, -14)
+	f.total:SetPoint("TOPRIGHT", -62, -14)
+	local goldHit = CreateFrame("Frame", nil, f)
+	goldHit:SetPoint("TOPRIGHT", -58, -8)
+	goldHit:SetSize(190, 40)
+	goldHit:SetScript("OnEnter", ShowGoldTooltip)
+	goldHit:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	f.warband = Text(f, F.small)
 	f.warband:SetPoint("TOPRIGHT", f.total, "BOTTOMRIGHT", 0, -5)
 	local totalLabel = Text(f, F.small)

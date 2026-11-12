@@ -103,7 +103,7 @@ end
 -- only match an item to its mount or pet once the item is cached, so uncached
 -- items are requested and out.pending asks for another scan.
 function F.ZoneItems(zoneMapID)
-	local out = { mounts = {}, pets = {}, wild = {} }
+	local out = { mounts = {}, pets = {}, wild = {}, have = 0 }
 	local zone = zoneMapID and D.zones[zoneMapID]
 	if not zone then return out end
 	for itemID, e in pairs(zone.items) do
@@ -123,12 +123,16 @@ function F.ZoneItems(zoneMapID)
 					local name, spellID, icon, _, _, _, _, _, _, _, collected = C_MountJournal.GetMountInfoByID(mountID)
 					if name and not collected then
 						table.insert(out.mounts, { kind = "mount", id = mountID, mountID = mountID, spellID = spellID, itemID = itemID, name = name, icon = icon, source = source })
+					elseif name then
+						out.have = out.have + 1
 					end
 				end
 			elseif kind == "pet" then
 				local name, icon, _, _, _, _, _, _, _, _, _, _, speciesID = C_PetJournal.GetPetInfoByItemID(itemID)
 				if speciesID and C_PetJournal.GetNumCollectedInfo(speciesID) == 0 then
 					table.insert(out.pets, { kind = "pet", id = speciesID, speciesID = speciesID, itemID = itemID, name = name or "?", icon = icon, source = source })
+				elseif speciesID then
+					out.have = out.have + 1
 				end
 			end
 		end
@@ -205,7 +209,7 @@ function F.ScanInstance(id)
 	local inst = D.instances[id]
 	if not inst then return nil end
 	local name = F.InstanceName(id)
-	local bosses, pending, count = {}, false, 0
+	local bosses, pending, count, have = {}, false, 0, 0
 	for _, b in ipairs(inst[4]) do
 		local boss = { name = b[1] < 0 and Localized(D.objects[-b[1]]) or NpcName(b[1]), items = {} }
 		local list = b[2]
@@ -220,6 +224,8 @@ function F.ScanInstance(id)
 					local kind, extra = ns.Collectible(itemID, link)
 					if kind == "pending" then
 						pending = true
+					elseif kind == "have" then
+						have = have + 1
 					elseif kind then
 						local item = extra or {}
 						item.kind, item.itemID, item.link, item.name, item.icon = kind, itemID, link, itemName, icon
@@ -236,5 +242,5 @@ function F.ScanInstance(id)
 	end
 	local killed = ns.KilledBosses(name)
 	for _, boss in ipairs(bosses) do boss.killed = killed[boss.name] end
-	return { id = id, name = name, difficulties = {}, bosses = bosses, count = count }, pending and "pending" or nil
+	return { id = id, name = name, difficulties = {}, bosses = bosses, count = count, have = have }, pending and "pending" or nil
 end

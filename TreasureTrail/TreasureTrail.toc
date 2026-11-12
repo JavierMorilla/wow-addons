@@ -10,6 +10,7 @@
 ## AddonCompartmentFunc: TreasureTrail_OnAddonCompartmentClick
 
 Locale.lua
+Minimap.lua
 Scan.lua
 ForeverData.lua
 Forever.lua

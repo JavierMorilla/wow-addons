@@ -36,11 +36,25 @@ local L = {
 	SrcQuest = "Quest: %s",
 	SrcMore = "and %d more",
 	FromPatch = "Arrives in patch %s",
+	Progress = "%d of %d collected",
+	Ignore = "Ignore: I am not going after this",
+	Ignored = "%s ignored. The settings menu (the cog) brings ignored things back.",
+	RestoreIgnored = "Bring back ignored (%d)",
+	Settings = "Settings",
+	Scale = "Window size",
+	MinimapButton = "Minimap button",
+	EntranceWaypoint = "Shift-click: mark the entrance on the map",
+	WaypointSet = "Entrance marked on the map: %s",
+	RightClickHint = "Right-click: ignore",
+	MinimapClick = "Click: open or close the list",
+	MinimapDrag = "Drag: move this button",
+	MinimapRight = "Right-click: hide this button",
+	MinimapHidden = "Minimap button hidden. Type |cffffd100/trail button|r to bring it back.",
 }
 
 local locale = GetLocale()
 if locale == "esES" or locale == "esMX" then
-	L.Missing = "Te faltan %d cosas aquí"
+	L.Missing = "Por conseguir aquí: %d"
 	L.NothingMissing = "Ya tienes todo lo que ofrece este lugar."
 	L.NoData = "Este cliente del juego no da el origen de monturas ni mascotas y no tiene guía de aventuras, así que aquí no hay nada que comprobar."
 	L.NoDataShort = "Sin datos de colecciones en este cliente"
@@ -73,6 +87,20 @@ if locale == "esES" or locale == "esMX" then
 	L.SrcQuest = "Misión: %s"
 	L.SrcMore = "y %d más"
 	L.FromPatch = "Llega en el parche %s"
+	L.Progress = "%d de %d conseguidos"
+	L.Ignore = "Ignorar: no voy a ir a por esto"
+	L.Ignored = "%s ignorado. El menú de ajustes (la rueda) recupera lo ignorado."
+	L.RestoreIgnored = "Recuperar lo ignorado (%d)"
+	L.Settings = "Ajustes"
+	L.Scale = "Tamaño de la ventana"
+	L.MinimapButton = "Botón del minimapa"
+	L.EntranceWaypoint = "Mayús+clic: marcar la entrada en el mapa"
+	L.WaypointSet = "Entrada marcada en el mapa: %s"
+	L.RightClickHint = "Clic derecho: ignorar"
+	L.MinimapClick = "Clic: abrir o cerrar la lista"
+	L.MinimapDrag = "Arrastrar: mover este botón"
+	L.MinimapRight = "Clic derecho: ocultar este botón"
+	L.MinimapHidden = "Botón del minimapa oculto. Escribe |cffffd100/trail boton|r para recuperarlo."
 end
 
 ns.L = L

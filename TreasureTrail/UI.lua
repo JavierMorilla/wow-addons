@@ -102,10 +102,51 @@ local function ItemLink(item)
 	if item.spellID then return C_Spell.GetSpellLink(item.spellID) end
 end
 
-local function OnItemClick(row)
+-- A point on the map for a dungeon entrance: TomTom's arrow when it is
+-- installed, else the game's own map pin.
+local function SetWaypoint(mapID, position, title)
+	local x, y = position.x, position.y
+	if position.GetXY then x, y = position:GetXY() end
+	if not (mapID and x and y) then return false end
+	if TomTom and TomTom.AddWaypoint then
+		TomTom:AddWaypoint(mapID, x, y, { title = title, from = L.Title })
+		return true
+	end
+	if C_Map.CanSetUserWaypointOnMap and C_Map.CanSetUserWaypointOnMap(mapID) and UiMapPoint then
+		C_Map.SetUserWaypoint(UiMapPoint.CreateFromCoordinates(mapID, x, y))
+		if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then C_SuperTrack.SetSuperTrackedUserWaypoint(true) end
+		return true
+	end
+	return false
+end
+
+local function Ignore(item)
+	ns.db.ignored[ns.IgnoreKey(item)] = item.name or true
+	print("|cff73e699" .. L.Title .. "|r " .. L.Ignored:format(item.link or item.name or "?"))
+	ns.Rescan(0)
+end
+
+local function OnItemClick(row, button)
 	local d = row.data
 	local item = d.item
+	if button == "RightButton" then
+		if not item then return end
+		GameTooltip:Hide()
+		if MenuUtil then
+			MenuUtil.CreateContextMenu(row, function(_, root)
+				root:CreateTitle(item.name or "?")
+				root:CreateButton(L.Ignore, function() Ignore(item) end)
+			end)
+		else
+			Ignore(item)
+		end
+		return
+	end
 	if d.entrance then
+		if IsShiftKeyDown() and d.entrance.position and ns.state and SetWaypoint(ns.state.zoneMapID, d.entrance.position, d.entrance.name) then
+			print("|cff73e699" .. L.Title .. "|r " .. L.WaypointSet:format(d.entrance.name or "?"))
+			return
+		end
 		browse = { id = d.entrance.journalInstanceID }
 		ns.Refresh()
 		ns.Rescan(0)
@@ -145,6 +186,7 @@ local function ShowItemTooltip(row)
 			tt:AddLine(d.entrance.description, 0.85, 0.85, 0.85, true)
 		end
 		tt:AddLine(L.EntranceMissing, unpack(C.accent))
+		if d.entrance.position then tt:AddLine(L.EntranceWaypoint, unpack(C.dim)) end
 		tt:Show()
 		return
 	end
@@ -164,6 +206,7 @@ local function ShowItemTooltip(row)
 	end
 	tt:AddLine(" ")
 	tt:AddLine(L.Hints, unpack(C.dim))
+	tt:AddLine(L.RightClickHint, unpack(C.dim))
 	tt:Show()
 end
 
@@ -224,7 +267,7 @@ local function InitButtonRow(row, data)
 		row.sub:SetJustifyH("LEFT")
 		row.tag = Text(row, F.small)
 		row.tag:SetPoint("RIGHT", -14, 0)
-		row:RegisterForClicks("LeftButtonUp")
+		row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 		row:SetScript("OnEnter", function(self)
 			self.hl:Show()
 			ShowItemTooltip(self)
@@ -357,14 +400,21 @@ function ns.Refresh()
 	frame.scrollBox:SetPoint("TOPLEFT", 1, -(HEADER_H + (browse and 34 or 0)))
 	UpdateDifficulties(inst)
 
+	-- "3 to collect here · 7 of 10 collected"
+	local function Summary(missing, have)
+		local text = L.Missing:format(missing)
+		if (have or 0) > 0 then text = text .. "  ·  " .. L.Progress:format(have, have + missing) end
+		return text
+	end
+
 	local status
 	if browse then
 		frame.title:SetText(inst and inst.name or L.Title)
-		frame.subtitle:SetText(inst and L.Missing:format(inst.count) or "")
+		frame.subtitle:SetText(inst and Summary(inst.count, inst.have) or "")
 		status = browse.status
 	elseif state then
 		frame.title:SetText(L.Title .. "  |cff8f96a6·|r  " .. (state.zoneName or ""))
-		frame.subtitle:SetText(state.noData and L.NoDataShort or L.Missing:format(state.total))
+		frame.subtitle:SetText(state.noData and L.NoDataShort or Summary(state.total, state.have))
 		status = state.instanceStatus or (state.zonePending and "pending")
 	else
 		frame.title:SetText(L.Title)
@@ -383,9 +433,45 @@ function ns.Refresh()
 	frame.pillCheck:SetChecked(ns.db.pill)
 end
 
+function ns.SetScale(scale)
+	scale = math.max(0.6, math.min(tonumber(scale) or 1, 1.6))
+	ns.db.scale = scale
+	if frame then frame:SetScale(scale) end
+end
+
+local SCALES = { 0.8, 0.9, 1, 1.1, 1.2, 1.3 }
+
+local function OpenSettings(owner)
+	MenuUtil.CreateContextMenu(owner, function(_, root)
+		root:CreateTitle(L.Settings)
+		local scale = root:CreateButton(L.Scale)
+		for _, v in ipairs(SCALES) do
+			scale:CreateRadio(format("%d%%", v * 100 + 0.5), function()
+				return math.abs((ns.db.scale or 1) - v) < 0.01
+			end, function() ns.SetScale(v) end)
+		end
+		root:CreateCheckbox(L.MinimapButton, function() return not ns.db.minimapHide end, function()
+			ns.SetMinimapHidden(not ns.db.minimapHide)
+		end)
+		root:CreateCheckbox(L.ShowPill, function() return ns.db.pill end, function()
+			ns.db.pill = not ns.db.pill
+			ns.Rescan(0)
+		end)
+		local ignored = 0
+		for _ in pairs(ns.db.ignored) do ignored = ignored + 1 end
+		if ignored > 0 then
+			root:CreateButton(L.RestoreIgnored:format(ignored), function()
+				wipe(ns.db.ignored)
+				ns.Rescan(0)
+			end)
+		end
+	end)
+end
+
 local function CreateWindow()
 	local f = CreateFrame("Frame", "TreasureTrailFrame", UIParent, "BackdropTemplate")
 	f:SetSize(W, H)
+	f:SetScale(ns.db.scale or 1)
 	f:SetFrameStrata("HIGH")
 	f:SetToplevel(true)
 	f:SetClampedToScreen(true)
@@ -428,7 +514,7 @@ local function CreateWindow()
 
 	f.title = Text(f, F.title)
 	f.title:SetPoint("TOPLEFT", PAD + 2, -16)
-	f.title:SetPoint("RIGHT", -40, 0)
+	f.title:SetPoint("RIGHT", -62, 0)
 	f.title:SetJustifyH("LEFT")
 	f.subtitle = Text(f, F.small)
 	f.subtitle:SetPoint("TOPLEFT", f.title, "BOTTOMLEFT", 0, -5)
@@ -441,6 +527,28 @@ local function CreateWindow()
 
 	local close = CreateFrame("Button", nil, f, "UIPanelCloseButton")
 	close:SetPoint("TOPRIGHT", -4, -4)
+
+	if MenuUtil then
+		local gear = CreateFrame("Button", nil, f)
+		gear:SetSize(16, 16)
+		gear:SetPoint("TOPRIGHT", -36, -12)
+		gear.icon = gear:CreateTexture(nil, "ARTWORK")
+		gear.icon:SetAllPoints()
+		gear.icon:SetTexture("Interface\\Buttons\\UI-OptionsButton")
+		gear.icon:SetVertexColor(unpack(C.dim))
+		gear:SetScript("OnEnter", function(self)
+			self.icon:SetVertexColor(unpack(C.accent))
+			GameTooltip:SetOwner(self, "ANCHOR_TOP")
+			GameTooltip:SetText(L.Settings)
+			GameTooltip:Show()
+		end)
+		gear:SetScript("OnLeave", function(self)
+			self.icon:SetVertexColor(unpack(C.dim))
+			GameTooltip:Hide()
+		end)
+		gear:SetScript("OnClick", OpenSettings)
+		f.gear = gear
+	end
 
 	f.tools = CreateFrame("Frame", nil, f)
 	f.tools:SetPoint("TOPLEFT", 1, -HEADER_H)
@@ -575,6 +683,9 @@ local scanTimer, retries, deferred = nil, 0, false
 
 local function DoScan()
 	scanTimer = nil
+	-- Nobody is looking: with the window closed and the pill turned off there
+	-- is nothing to update. Opening the window or ticking the pill scans again.
+	if not ns.db.pill and not (frame and frame:IsShown()) then return end
 	if InCombatLockdown() then
 		deferred = true
 		return
@@ -632,8 +743,26 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2)
 		if arg1 ~= addonName then return end
 		TreasureTrailDB = TreasureTrailDB or {}
 		if TreasureTrailDB.pill == nil then TreasureTrailDB.pill = true end
+		TreasureTrailDB.ignored = TreasureTrailDB.ignored or {}
 		ns.db = TreasureTrailDB
 		pill = CreatePill()
+		ns.CreateMinimapButton({
+			name = "TreasureTrailMinimapButton",
+			icon = "Interface\\Icons\\INV_Misc_Spyglass_02",
+			angle = 250,
+			onClick = function() ns.Toggle() end,
+			hiddenText = "|cff73e699" .. L.Title .. "|r " .. L.MinimapHidden,
+			tooltip = function(tt)
+				tt:AddLine(L.Title, unpack(C.accent))
+				if ns.state then
+					tt:AddLine((ns.state.zoneName or "") .. ": " .. L.Missing:format(ns.state.total), 1, 1, 1)
+				end
+				tt:AddLine(" ")
+				tt:AddLine(L.MinimapClick, unpack(C.dim))
+				tt:AddLine(L.MinimapDrag, unpack(C.dim))
+				tt:AddLine(L.MinimapRight, unpack(C.dim))
+			end,
+		})
 	elseif event == "PLAYER_ENTERING_WORLD" then
 		browse = nil
 		retries = 0
@@ -652,7 +781,20 @@ end)
 SLASH_TREASURETRAIL1 = "/trail"
 SLASH_TREASURETRAIL2 = "/treasuretrail"
 SLASH_TREASURETRAIL3 = "/rastro"
-SlashCmdList.TREASURETRAIL = function() ns.Toggle() end
+SlashCmdList.TREASURETRAIL = function(msg)
+	msg = strtrim(msg or "")
+	local cmd, rest = msg:match("^(%S*)%s*(.-)$")
+	cmd = cmd:lower()
+	if cmd == "boton" or cmd == "botón" or cmd == "button" or cmd == "minimap" then
+		ns.SetMinimapHidden(not ns.db.minimapHide)
+	elseif cmd == "scale" or cmd == "escala" then
+		local n = tonumber((rest:gsub("%%", ""))) or 1
+		if n > 3 then n = n / 100 end
+		ns.SetScale(n)
+	else
+		ns.Toggle()
+	end
+end
 
 function TreasureTrail_OnAddonCompartmentClick()
 	ns.Toggle()

@@ -100,15 +100,20 @@ local function ByName(a, b) return a.name < b.name end
 function ns.ScanZone(zoneName)
 	local out = { mounts = {}, pets = {}, wild = {} }
 	if not zoneName or zoneName == "" or not index.pets then return out end
+	out.have = 0 -- what this zone offers and the player already owns
 	for _, m in ipairs(index.mounts) do
 		if m.source:find(zoneName, 1, true) then
 			local collected = select(11, C_MountJournal.GetMountInfoByID(m.id))
-			if not collected then table.insert(out.mounts, m) end
+			if collected then out.have = out.have + 1 else table.insert(out.mounts, m) end
 		end
 	end
 	for _, p in ipairs(index.pets) do
-		if p.source:find(zoneName, 1, true) and C_PetJournal.GetNumCollectedInfo(p.id) == 0 then
-			table.insert(p.wild and out.wild or out.pets, p)
+		if p.source:find(zoneName, 1, true) then
+			if C_PetJournal.GetNumCollectedInfo(p.id) == 0 then
+				table.insert(p.wild and out.wild or out.pets, p)
+			else
+				out.have = out.have + 1
+			end
 		end
 	end
 	table.sort(out.mounts, ByName)
@@ -119,24 +124,25 @@ end
 
 -- Instance loot -----------------------------------------------------------------------------
 
--- What a loot item would add to the collection, or nil when it adds nothing.
--- Returns "pending" while the item's data is not cached yet.
+-- What a loot item would add to the collection: its kind and details, "have"
+-- when the player already owns what it gives, or nil when it is nothing to
+-- collect. Returns "pending" while the item's data is not cached yet.
 local function Collectible(itemID, link)
 	local mountID = C_MountJournal.GetMountFromItem(itemID)
 	if mountID and mountID > 0 then
 		local _, spellID, _, _, _, _, _, _, _, _, collected = C_MountJournal.GetMountInfoByID(mountID)
 		if not collected then return "mount", { mountID = mountID, spellID = spellID } end
-		return
+		return "have"
 	end
 	local speciesID = select(13, C_PetJournal.GetPetInfoByItemID(itemID))
 	if speciesID then
 		if C_PetJournal.GetNumCollectedInfo(speciesID) == 0 then return "pet", { speciesID = speciesID } end
-		return
+		return "have"
 	end
 	local toyID, toyName = C_ToyBox.GetToyInfo(itemID)
 	if toyID and toyName then
 		if not PlayerHasToy(itemID) then return "toy", { itemID = itemID } end
-		return
+		return "have"
 	end
 	local _, sourceID = C_TransmogCollection.GetItemInfo(link)
 	if not sourceID then
@@ -152,9 +158,42 @@ local function Collectible(itemID, link)
 		if not hasData then return "pending" end
 		if ns.Forever then canCollect = ns.Forever.CanCollect(itemID) end
 		if canCollect then return "appearance", { sourceID = sourceID } end
+	elseif info then
+		return "have"
 	end
 end
 ns.Collectible = Collectible
+
+-- Ignored things: what the player said they are not going after (right-click a
+-- row). Kept by kind and id in the saved data, and left out of every list and
+-- count as if the place did not offer them.
+function ns.IgnoreKey(item)
+	if item.kind == "mount" then return "mount:" .. tostring(item.mountID or item.id) end
+	if item.kind == "pet" then return "pet:" .. tostring(item.speciesID or item.id) end
+	if item.kind == "toy" then return "toy:" .. tostring(item.itemID) end
+	return "look:" .. tostring(item.sourceID or item.itemID)
+end
+
+local function Unignored(list)
+	local ignored = ns.db and ns.db.ignored
+	if not ignored or not next(ignored) then return list end
+	local out = {}
+	for _, item in ipairs(list) do
+		if not ignored[ns.IgnoreKey(item)] then out[#out + 1] = item end
+	end
+	return out
+end
+
+local function WithoutIgnored(inst)
+	if not inst then return inst end
+	local count = 0
+	for _, boss in ipairs(inst.bosses) do
+		boss.items = Unignored(boss.items)
+		count = count + #boss.items
+	end
+	inst.count = count
+	return inst
+end
 
 -- Boss names killed this lockout, from the saved-instance list; any
 -- difficulty when difficultyID is nil.
@@ -178,7 +217,10 @@ ns.KilledBosses = KilledBosses
 -- Reads an instance's loot through the Adventure Guide API. The guide's own
 -- filters are put back afterwards so the Adventure Guide window is unaffected.
 function ns.ScanInstance(journalInstanceID, difficultyID)
-	if ns.Forever then return ns.Forever.ScanInstance(journalInstanceID) end
+	if ns.Forever then
+		local inst, status = ns.Forever.ScanInstance(journalInstanceID)
+		return WithoutIgnored(inst), status
+	end
 	if EncounterJournal and EncounterJournal:IsShown() then
 		return nil, "busy"
 	end
@@ -212,7 +254,7 @@ function ns.ScanInstance(journalInstanceID, difficultyID)
 		i = i + 1
 	end
 
-	local pending, count = false, 0
+	local pending, count, have = false, 0, 0
 	for n = 1, EJ_GetNumLoot() do
 		local info = C_EncounterJournal.GetLootInfoByIndex(n)
 		if info and info.itemID then
@@ -224,6 +266,8 @@ function ns.ScanInstance(journalInstanceID, difficultyID)
 			end
 			if kind == "pending" then
 				pending = true
+			elseif kind == "have" then
+				have = have + 1
 			elseif kind then
 				local boss = byEncounter[info.encounterID]
 				if boss then
@@ -244,14 +288,15 @@ function ns.ScanInstance(journalInstanceID, difficultyID)
 	local killed = KilledBosses(instanceName, difficultyID)
 	for _, boss in ipairs(bosses) do boss.killed = killed[boss.name] end
 
-	return {
+	return WithoutIgnored({
 		id = journalInstanceID,
 		name = instanceName,
 		difficultyID = difficultyID,
 		difficulties = difficulties,
 		bosses = bosses,
 		count = count,
-	}, pending and "pending" or nil
+		have = have,
+	}), pending and "pending" or nil
 end
 
 -- The whole picture for where the player stands -----------------------------------------------
@@ -279,7 +324,7 @@ function ns.Scan()
 	end
 
 	local found = ns.Forever and ns.Forever.ZoneItems(not inInstance and state.zoneMapID) or ns.ScanZone(state.zoneName)
-	state.mounts, state.pets, state.wild = found.mounts, found.pets, found.wild
+	state.mounts, state.pets, state.wild = Unignored(found.mounts), Unignored(found.pets), Unignored(found.wild)
 	state.zonePending = found.pending
 
 	-- A boss mount shows under its boss; drop it from the zone list
@@ -296,6 +341,8 @@ function ns.Scan()
 	end
 
 	state.total = #state.mounts + #state.pets + #state.wild + (state.instance and state.instance.count or 0)
+	-- Already owned, of what this place offers: the other half of the progress line
+	state.have = (found.have or 0) + (state.instance and state.instance.have or 0)
 
 	-- WoW Forever's client has no mount or pet source texts and an empty
 	-- Adventure Guide: an empty list there means "unknown", not "all collected".

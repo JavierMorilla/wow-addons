@@ -3,14 +3,42 @@ local _, ns = ...
 -- WoW Forever (interface 16001) runs vanilla content on the retail client:
 -- no Great Vault, Mythic+, crests or coffer keys to show. Set here, before
 -- UI.lua, which lays out its columns as it loads.
-ns.vanillaContent = select(4, GetBuildInfo()) < 20000
+local BUILD = select(4, GetBuildInfo())
+ns.vanillaContent = BUILD < 20000
 
--- The War Within, Season 3 (11.2.x)
-ns.CRESTS = { 3284, 3286, 3288, 3290 } -- Weathered, Carved, Runed, Gilded Ethereal Crest
-ns.CREST_COLORS = { "ff1eff00", "ff0070dd", "ffa335ee", "ffff8000" }
-ns.VALORSTONES = 3008
-ns.COFFER_KEYS = 3028 -- Restored Coffer Key
-ns.TRACKED_CURRENCIES = { 3284, 3286, 3288, 3290, 3008, 3028 }
+-- What changes with each season: the crest currencies, the coffer key and the
+-- item levels where each upgrade track starts. Supporting a new season is one
+-- more entry here; on a client with no entry (ns.season is nil) the crest and
+-- key columns are left out and item levels are not coloured, rather than
+-- showing last season's numbers.
+local SEASONS = {
+	{ -- The War Within, Season 3 (11.2.x)
+		from = 110200, to = 110299,
+		crests = { 3284, 3286, 3288, 3290 }, -- Weathered, Carved, Runed, Gilded Ethereal Crest
+		crestColors = { "ff1eff00", "ff0070dd", "ffa335ee", "ffff8000" },
+		valorstones = 3008,
+		cofferKeys = 3028, -- Restored Coffer Key
+		ilvlTracks = { -- lowest item level of each track, best first
+			{ 707, "ffff8000" }, -- Myth
+			{ 694, "ffa335ee" }, -- Hero
+			{ 681, "ff0070dd" }, -- Champion
+			{ 668, "ff1eff00" }, -- Veteran
+		},
+	},
+}
+for _, season in ipairs(SEASONS) do
+	if BUILD >= season.from and BUILD <= season.to then ns.season = season end
+end
+
+local season = ns.season
+ns.CRESTS = season and season.crests or {}
+ns.CREST_COLORS = season and season.crestColors or {}
+ns.VALORSTONES = season and season.valorstones
+ns.COFFER_KEYS = season and season.cofferKeys
+ns.TRACKED_CURRENCIES = {}
+for _, id in ipairs(ns.CRESTS) do table.insert(ns.TRACKED_CURRENCIES, id) end
+if ns.VALORSTONES then table.insert(ns.TRACKED_CURRENCIES, ns.VALORSTONES) end
+if ns.COFFER_KEYS then table.insert(ns.TRACKED_CURRENCIES, ns.COFFER_KEYS) end
 
 local T = Enum.WeeklyRewardChestThresholdType
 ns.VAULT_TYPES = {
@@ -176,8 +204,11 @@ function ns.Collect(parts)
 	Try("basics", CollectBasics, rec)
 	if not parts or parts.xp then Try("xp", CollectXP, rec) end
 	if not parts or parts.currency then Try("currency", CollectCurrencies, rec) end
-	if not parts or parts.vault then Try("vault", CollectVault, rec) end
-	if not parts or parts.mplus then Try("mplus", CollectMythicPlus, rec) end
+	-- No Great Vault or Mythic+ in vanilla content
+	if not ns.vanillaContent then
+		if not parts or parts.vault then Try("vault", CollectVault, rec) end
+		if not parts or parts.mplus then Try("mplus", CollectMythicPlus, rec) end
+	end
 	if not parts or parts.lockouts then Try("lockouts", CollectLockouts, rec) end
 	if not parts or parts.professions then Try("professions", CollectProfessions, rec) end
 

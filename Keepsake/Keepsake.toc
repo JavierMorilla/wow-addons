@@ -10,5 +10,6 @@
 ## AddonCompartmentFunc: Keepsake_OnAddonCompartmentClick
 
 Locale.lua
+Minimap.lua
 Record.lua
 UI.lua
