@@ -1,5 +1,16 @@
 # Treasure Trail
 
+## 0.4.0
+
+Tested in game on WoW Forever.
+
+- Right-click anything you do not care about to ignore it; the gear menu brings everything back
+- The header shows your progress: how many are left and how many of the total you already have
+- Shift-click a dungeon or raid entrance to set a waypoint on it (TomTom when installed, the map pin otherwise). Not on WoW Forever, where entrances have no coordinates yet
+- A minimap button: click opens the list, drag moves it, right-click hides it (`/trail button` brings it back)
+- A gear button in the header: window size, the minimap button and the pill
+- With the pill off and the window closed the addon no longer scans in the background
+
 ## 0.3.0
 
 Treasure Trail now works on WoW Forever, tested in game.

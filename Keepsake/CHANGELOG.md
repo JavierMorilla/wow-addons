@@ -1,5 +1,17 @@
 # Keepsake
 
+## 0.3.0
+
+Tested in game on WoW Forever.
+
+- Your own notes: the "+ Note" button or `/keepsake note <text>`, with a Notes filter
+- Right-click an entry to remove it, or to edit it when it is a note
+- A minimap button: click opens the journal, drag moves it, right-click hides it (`/keepsake button` brings it back)
+- A gear button in the header: window size, the minimap button, and the quality from which loot is recorded (rare, epic or legendary). On WoW Forever the default is rare
+- Dates follow the client's language
+- The character list scrolls when it is long, and characters with the same name show their realm
+- Searching a long journal is faster, and several events at once no longer take a burst of screenshots
+
 ## 0.2.0
 
 Beta: runs on retail Midnight (12.1.5, 12.1.7) and WoW Forever as well as The War Within. Not yet tested in game on those clients; please report any error.

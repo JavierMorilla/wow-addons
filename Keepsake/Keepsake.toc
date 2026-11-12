@@ -3,7 +3,7 @@
 ## Notes: A journal of every character's story: levels, first boss kills, Mythic+ runs, epic loot, mounts, pets, toys, renown and first visits, with automatic screenshots.
 ## Notes-esES: El diario de la historia de cada personaje: niveles, primeras victorias, M+, botín épico, monturas, mascotas, juguetes, renombre y primeras visitas, con capturas automáticas.
 ## Author: Morigoll
-## Version: 0.2.0
+## Version: 0.3.0
 ## SavedVariables: KeepsakeDB
 ## AllowAddOnTableAccess: 1
 ## IconTexture: Interface\Icons\INV_Misc_Book_11

@@ -1,5 +1,15 @@
 # Barracks
 
+## 0.3.0
+
+Tested in game on WoW Forever.
+
+- A gear button in the header: window size (80% to 130%) and the minimap button on or off. `/alts scale 110` does the same from chat
+- A filter box: type part of a name, realm or class
+- Hover the gold total for the split by realm and faction
+- Forgetting a character asks for confirmation first
+- On Midnight the crest and coffer key columns are hidden and item level is not coloured by track until that season's data is in; on WoW Forever the addon no longer asks the game for Mythic+ and vault data that does not exist there
+
 ## 0.2.1
 
 Tested in game on WoW Forever.
